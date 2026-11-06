@@ -23,7 +23,7 @@ jobs:
         run: |
           set -euo pipefail
           xcodebuild \
-            -project GitHubStars/GitHubStars.xcodeproj \
+            -project GitHubStars.xcodeproj \
             -target GitHubStars \
             -configuration Release \
             -destination 'generic/platform=iOS' \
