@@ -2,8 +2,8 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-<title>GitHub 高星项目</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no" />
+<title>SGit</title>
 <style>
   :root {
     --bg: #f2f2f7;
@@ -32,54 +32,61 @@
     color: var(--fg);
     -webkit-font-smoothing: antialiased;
   }
-  .app { max-width: 720px; margin: 0 auto; padding: 0 12px calc(40px + env(safe-area-inset-bottom)); }
+  .app { max-width: 720px; margin: 0 auto; padding: 0 12px calc(92px + env(safe-area-inset-bottom)); }
 
   header { padding: 14px 0 6px; position: sticky; top: 0; background: var(--bg); z-index: 5; }
-  .title { font-size: 22px; font-weight: 700; margin: 0 0 2px; }
+  .title { font-size: 26px; font-weight: 800; letter-spacing: .5px; margin: 0 0 2px; }
   .subtitle { font-size: 13px; color: var(--fg2); margin: 0 0 10px; }
 
   .seg { display: flex; background: var(--card); border-radius: 10px; padding: 3px; margin-bottom: 10px; }
   .seg button { flex: 1; border: none; background: transparent; color: var(--fg); font-size: 14px; padding: 8px 0; border-radius: 8px; font-weight: 600; cursor: pointer; }
   .seg button.active { background: var(--accent); color: #fff; }
 
-  .search { width: 100%; padding: 10px 12px; border: 1px solid var(--sep); border-radius: 10px; background: var(--card); color: var(--fg); font-size: 15px; margin-bottom: 10px; outline: none; }
-
   .chips { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 10px; -webkit-overflow-scrolling: touch; }
   .chips::-webkit-scrollbar { display: none; }
   .chip { flex: 0 0 auto; padding: 7px 14px; border-radius: 999px; border: 1px solid var(--sep); background: var(--card); color: var(--fg); font-size: 14px; cursor: pointer; white-space: nowrap; }
   .chip.active { background: var(--accent); color: #fff; border-color: var(--accent); }
 
-  .toolbar { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; flex-wrap: wrap; }
-  .toolbar .grow { flex: 1; }
-  .mini { font-size: 13px; color: var(--fg2); display: flex; align-items: center; gap: 6px; cursor: pointer; }
-  .btn { border: 1px solid var(--sep); background: var(--card); color: var(--fg); border-radius: 9px; padding: 7px 12px; font-size: 13px; cursor: pointer; }
-  .btn:active { opacity: .6; }
-
-  .settings { border: 1px solid var(--sep); border-radius: 10px; padding: 10px; margin-bottom: 8px; background: var(--card); }
-  .settings input { width: 100%; padding: 8px 10px; border: 1px solid var(--sep); border-radius: 8px; background: var(--bg); color: var(--fg); font-size: 14px; }
-  .settings p { font-size: 12px; color: var(--fg2); margin: 8px 0 0; }
-
-  .card { background: var(--card); border: 1px solid var(--sep); border-radius: 14px; padding: 14px; margin-bottom: 12px; box-shadow: 0 1px 4px rgba(0,0,0,.05); }
-  .card .top { display: flex; gap: 12px; align-items: flex-start; }
+  .card { background: var(--card); border: 1px solid var(--sep); border-radius: 14px; padding: 14px; margin-bottom: 12px; box-shadow: 0 1px 4px rgba(0,0,0,.05); position: relative; }
+  .card .top { display: flex; gap: 12px; align-items: flex-start; padding-right: 30px; }
   .avatar { width: 42px; height: 42px; border-radius: 50%; flex: 0 0 auto; background: var(--bg); }
   .repo-name { font-size: 16px; font-weight: 700; line-height: 1.25; word-break: break-all; }
   .owner { font-size: 12px; color: var(--fg2); margin-top: 2px; }
   .desc { font-size: 14px; color: var(--fg); margin: 10px 0 0; line-height: 1.45; }
-  .desc.translated { color: var(--fg); }
   .badge { display: inline-block; font-size: 10px; background: var(--accent); color: #fff; border-radius: 4px; padding: 1px 5px; margin-left: 6px; vertical-align: middle; }
   .meta { display: flex; gap: 16px; margin-top: 10px; font-size: 13px; color: var(--fg2); align-items: center; flex-wrap: wrap; }
   .meta .lang { display: flex; align-items: center; gap: 5px; }
   .dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
   .star { color: var(--star); }
   .transbtn { margin-top: 10px; font-size: 12px; color: var(--accent); border: 1px solid var(--accent); border-radius: 8px; padding: 4px 10px; background: transparent; cursor: pointer; }
+  .favstar { position: absolute; top: 10px; right: 10px; font-size: 22px; line-height: 1; color: var(--fg2); background: none; border: none; cursor: pointer; padding: 4px; }
+  .favstar.on { color: var(--star); }
 
   .status { text-align: center; color: var(--fg2); font-size: 14px; padding: 20px; }
   .status.err { color: #ff3b30; }
   .sentinel { height: 1px; }
 
-  /* modal */
-  .overlay { position: fixed; inset: 0; background: var(--bg); z-index: 20; overflow-y: auto; display: none; padding: 0 12px calc(30px + env(safe-area-inset-bottom)); }
+  /* 底部固定栏：搜索 + 用户头像 */
+  .bottombar {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 10;
+    padding: 10px 12px calc(10px + env(safe-area-inset-bottom));
+    background: rgba(242,242,247,.92);
+    border-top: 1px solid var(--sep);
+    -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px);
+  }
+  @media (prefers-color-scheme: dark) { .bottombar { background: rgba(20,20,22,.92); } }
+  .bottombar .inner { max-width: 720px; margin: 0 auto; display: flex; gap: 10px; align-items: center; }
+  .search { flex: 1; min-width: 0; padding: 11px 14px; border: 1px solid var(--sep); border-radius: 22px; background: var(--card); color: var(--fg); font-size: 15px; outline: none; }
+  .userbtn { flex: 0 0 44px; width: 44px; height: 44px; border-radius: 50%; border: 1px solid var(--sep); background: var(--card); color: var(--fg2); font-size: 19px; display: flex; align-items: center; justify-content: center; cursor: pointer; overflow: hidden; padding: 0; }
+  .userbtn.logged { background: var(--accent); color: #fff; border-color: var(--accent); font-weight: 700; font-size: 18px; }
+
+  .totop { position: fixed; right: 16px; bottom: calc(84px + env(safe-area-inset-bottom)); z-index: 9; width: 44px; height: 44px; border-radius: 12px; border: none; background: var(--accent); color: #fff; font-size: 20px; cursor: pointer; box-shadow: 0 4px 14px rgba(0,122,255,.4); display: none; }
+  .totop.show { display: block; }
+
+  /* overlay / modal */
+  .overlay { position: fixed; inset: 0; background: var(--bg); z-index: 20; overflow-y: auto; display: none; padding: 0 12px calc(30px + env(safe-area-inset-bottom)); -webkit-overflow-scrolling: touch; }
   .overlay.open { display: block; }
+  .overlay .inner { max-width: 720px; margin: 0 auto; }
   .modal-head { position: sticky; top: 0; background: var(--bg); padding: 12px 0; display: flex; align-items: center; gap: 10px; z-index: 2; }
   .modal-head .back { font-size: 16px; color: var(--accent); cursor: pointer; background: none; border: none; padding: 4px 0; }
   .modal-head .mt { font-size: 17px; font-weight: 700; }
@@ -102,12 +109,38 @@
   .openbtn { display: block; width: 100%; text-align: center; margin-top: 16px; padding: 12px; background: var(--accent); color: #fff; border-radius: 12px; text-decoration: none; font-weight: 600; }
   .spinner { display: inline-block; width: 18px; height: 18px; border: 2px solid var(--fg2); border-top-color: transparent; border-radius: 50%; animation: spin .8s linear infinite; vertical-align: middle; }
   @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* 用户中心 */
+  .sec-title { font-size: 15px; font-weight: 700; margin: 0 0 12px; }
+  .auth-tabs { display: flex; gap: 8px; margin-bottom: 14px; }
+  .auth-tabs button { flex: 1; padding: 9px; border: 1px solid var(--sep); background: var(--card); border-radius: 9px; color: var(--fg); font-size: 14px; cursor: pointer; }
+  .auth-tabs button.active { background: var(--accent); color: #fff; border-color: var(--accent); font-weight: 600; }
+  .uinput { width: 100%; padding: 11px 12px; border: 1px solid var(--sep); border-radius: 10px; background: var(--bg); color: var(--fg); font-size: 15px; margin-bottom: 10px; }
+  .primary { width: 100%; padding: 12px; background: var(--accent); color: #fff; border: none; border-radius: 11px; font-size: 15px; font-weight: 600; cursor: pointer; }
+  .hint { font-size: 12px; color: var(--fg2); line-height: 1.55; margin: 10px 0 0; }
+  .auth-err { font-size: 13px; color: #ff3b30; min-height: 18px; margin: 0 0 6px; }
+  .profile { display: flex; align-items: center; gap: 12px; }
+  .avatar-lg { width: 48px; height: 48px; border-radius: 50%; background: var(--accent); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 22px; font-weight: 700; flex: 0 0 auto; }
+  .pname { font-size: 17px; font-weight: 700; word-break: break-all; }
+  .phint { font-size: 12px; color: var(--fg2); margin-top: 2px; }
+  .btn { border: 1px solid var(--sep); background: var(--card); color: var(--fg); border-radius: 9px; padding: 7px 12px; font-size: 13px; cursor: pointer; }
+  .btn:active { opacity: .6; }
+  .profile .btn { margin-left: auto; flex: 0 0 auto; }
+  .favrow { display: flex; align-items: center; gap: 10px; padding: 11px 0; border-bottom: 1px solid var(--sep); cursor: pointer; }
+  .favrow:last-child { border-bottom: none; }
+  .fname { font-size: 14px; font-weight: 600; word-break: break-all; }
+  .fmeta { font-size: 12px; color: var(--fg2); margin-top: 3px; }
+  .favdel { border: none; background: none; color: #ff3b30; font-size: 13px; cursor: pointer; flex: 0 0 auto; }
+  .empty { font-size: 13px; color: var(--fg2); text-align: center; padding: 16px; }
+  .field-label { display: block; font-size: 13px; color: var(--fg2); margin: 14px 0 6px; }
+  .settings-input { width: 100%; padding: 10px 11px; border: 1px solid var(--sep); border-radius: 10px; background: var(--bg); color: var(--fg); font-size: 14px; }
+  .switch { display: flex; align-items: center; gap: 8px; font-size: 14px; margin-top: 16px; cursor: pointer; }
 </style>
 </head>
 <body>
 <div class="app">
   <header>
-    <h1 class="title">GitHub 高星项目</h1>
+    <h1 class="title">SGit</h1>
     <p class="subtitle">发现并浏览 GitHub 上的高星开源项目</p>
 
     <div class="seg" id="seg">
@@ -115,23 +148,7 @@
       <button data-rank="trending">升星最快</button>
     </div>
 
-    <input class="search" id="search" type="search" placeholder="搜索仓库，按热度排序" />
-
     <div class="chips" id="chips"></div>
-
-    <div class="toolbar">
-      <span class="grow"></span>
-      <label class="mini"><input type="checkbox" id="translateToggle" /> 翻译描述</label>
-      <button class="btn" id="refreshBtn">刷新</button>
-      <button class="btn" id="settingsBtn">令牌</button>
-    </div>
-
-    <div class="settings" id="settings" style="display:none">
-      <input id="tokenInput" type="password" placeholder="粘贴 GitHub Token（可选，提升额度）" />
-      <p>未登录每小时仅 60 次请求；填入具备 public_repo 只读权限的 Token 可提升到 5000 次。仅保存在本机浏览器。</p>
-      <input id="trEndpointInput" type="text" placeholder="Cloudflare 翻译端点（可选，国内更稳）" style="margin-top:8px" />
-      <p>可部署免费的 Cloudflare Workers AI 翻译服务（见 README 的「自建翻译服务」），部署后把地址粘贴到这里，即可在国内稳定翻译、不再受 Google/MyMemory 限流影响。仅保存在本机浏览器。</p>
-    </div>
   </header>
 
   <div id="list"></div>
@@ -139,12 +156,82 @@
   <div class="status" id="status"></div>
 </div>
 
-<div class="overlay" id="overlay">
-  <div class="modal-head">
-    <button class="back" id="backBtn">← 返回</button>
-    <span class="mt">项目详情</span>
+<div class="bottombar">
+  <div class="inner">
+    <input class="search" id="search" type="search" placeholder="搜索仓库，按热度排序" />
+    <button class="userbtn" id="userBtn" aria-label="我的"><span id="avatarGlyph">👤</span></button>
   </div>
-  <div id="detail"></div>
+</div>
+
+<button class="totop" id="toTop" aria-label="回到顶部">↑</button>
+
+<!-- 项目详情 -->
+<div class="overlay" id="overlay">
+  <div class="inner">
+    <div class="modal-head">
+      <button class="back" id="backBtn">← 返回</button>
+      <span class="mt">项目详情</span>
+    </div>
+    <div id="detail"></div>
+  </div>
+</div>
+
+<!-- 我的（用户中心二级页） -->
+<div class="overlay" id="userOverlay">
+  <div class="inner">
+    <div class="modal-head">
+      <button class="back" id="userBackBtn">← 返回</button>
+      <span class="mt">我的</span>
+    </div>
+
+    <div class="dcard">
+      <!-- 未登录 -->
+      <div id="authGuest">
+        <div class="auth-tabs">
+          <button data-auth="login" class="active">登录</button>
+          <button data-auth="register">注册</button>
+        </div>
+        <input class="uinput" id="authUser" type="text" placeholder="用户名" autocomplete="off" autocapitalize="off" />
+        <input class="uinput" id="authPwd" type="password" placeholder="密码" />
+        <input class="uinput" id="authPwd2" type="password" placeholder="确认密码" style="display:none" />
+        <div class="auth-err" id="authErr"></div>
+        <button class="primary" id="authSubmit">登录</button>
+        <p class="hint">账号与收藏数据仅保存在本机 App 内，不会上传到服务器；卸载 App 或更换设备后不保留。这是纯本地账号，仅用于区分收藏。</p>
+      </div>
+      <!-- 已登录 -->
+      <div id="authUserBox" style="display:none">
+        <div class="profile">
+          <div class="avatar-lg" id="profileAvatar">S</div>
+          <div style="min-width:0">
+            <div class="pname" id="profileName"></div>
+            <div class="phint">已登录 · 本地账号</div>
+          </div>
+          <button class="btn" id="logoutBtn">退出登录</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 我的收藏 -->
+    <div class="dcard" id="favCard">
+      <div class="sec-title">我的收藏 <span id="favCount"></span></div>
+      <div id="favList"></div>
+    </div>
+
+    <!-- 设置（原「齿轮 / 令牌」内容并入此处） -->
+    <div class="dcard">
+      <div class="sec-title">设置</div>
+      <label class="field-label">GitHub Token（可选）</label>
+      <input class="settings-input" id="tokenInput" type="password" placeholder="粘贴 GitHub Token，提升请求额度" />
+      <p class="hint">未登录每小时仅 60 次请求；填入具备 public_repo 只读权限的 Token 可提升到 5000 次。仅保存在本机。</p>
+
+      <label class="field-label">Cloudflare 翻译端点（可选）</label>
+      <input class="settings-input" id="trEndpointInput" type="text" placeholder="https://xxx.workers.dev" />
+      <p class="hint">部署免费的 Cloudflare Workers AI 翻译服务后，把地址粘贴到这里，即可在国内稳定翻译、不受公共接口限流影响。仅保存在本机。</p>
+
+      <label class="switch"><input type="checkbox" id="translateToggle" /> 自动翻译描述为中文</label>
+      <div style="margin-top:14px"><button class="btn" id="refreshBtn">刷新列表</button></div>
+    </div>
+  </div>
 </div>
 
 <script>
@@ -152,7 +239,7 @@
   "use strict";
 
   var API = "https://api.github.com/search/repositories";
-  // 翻译服务：按顺序尝试多个免 key 端点，任一成功即用（提升不同网络环境下的可用性）。
+  // 翻译服务：按顺序尝试多个免 key 端点，任一成功即用。
   var TR_ENDPOINTS = [
     {
       url: function (q) {
@@ -184,6 +271,36 @@
     "Ruby": "#701516", "Kotlin": "#A97BFF", "PHP": "#4F5D95",
     "Shell": "#89E051", "Dart": "#00B4AB", "Vue": "#41B883", "HTML": "#E34C26"
   };
+
+  // ---- 本地账号与收藏（无后端，仅存本机）----
+  var LS_USERS = "sg_users";
+  var LS_SESSION = "sg_session";
+  var LS_FAV = "sg_fav_";
+  function hashPwd(s) {
+    var h = 5381;
+    for (var i = 0; i < s.length; i++) { h = ((h << 5) + h + s.charCodeAt(i)) >>> 0; }
+    return "h" + h.toString(16);
+  }
+  function getUsers() { try { return JSON.parse(localStorage.getItem(LS_USERS) || "{}"); } catch (e) { return {}; } }
+  function saveUsers(u) { localStorage.setItem(LS_USERS, JSON.stringify(u)); }
+  function getUser() { return localStorage.getItem(LS_SESSION) || ""; }
+  function setUser(u) { if (u) localStorage.setItem(LS_SESSION, u); else localStorage.removeItem(LS_SESSION); }
+  function getFavs() {
+    var u = getUser(); if (!u) return [];
+    try { return JSON.parse(localStorage.getItem(LS_FAV + u) || "[]"); } catch (e) { return []; }
+  }
+  function saveFavs(a) { var u = getUser(); if (u) localStorage.setItem(LS_FAV + u, JSON.stringify(a)); }
+  function isFav(id) {
+    return getFavs().some(function (r) { return String(r.id) === String(id); });
+  }
+  function updateFavButtons() {
+    var nodes = document.querySelectorAll("[data-fav]");
+    Array.prototype.forEach.call(nodes, function (b) {
+      var on = isFav(b.getAttribute("data-fav"));
+      b.textContent = on ? "★" : "☆";
+      if (on) b.classList.add("on"); else b.classList.remove("on");
+    });
+  }
 
   var state = {
     ranking: "hot",
@@ -226,12 +343,11 @@
     d.setDate(d.getDate() - n);
     return d.toISOString().slice(0, 10);
   }
-
   function fmtCount(n) {
+    if (n == null) return "0";
     if (n >= 1000) return (n / 1000).toFixed(1) + "k";
     return String(n);
   }
-
   function fmtDate(iso) {
     if (!iso) return "";
     var d = new Date(iso);
@@ -240,7 +356,6 @@
     var day = ("0" + d.getDate()).slice(-2);
     return d.getFullYear() + "-" + m + "-" + day;
   }
-
   function buildQuery() {
     var parts = [];
     var kw = state.q.trim();
@@ -250,14 +365,12 @@
     if (state.lang) parts.push("language:" + state.lang);
     return parts.join(" ");
   }
-
   function setStatus(msg, isErr) {
     var s = $("status");
     if (!msg) { s.textContent = ""; s.className = "status"; return; }
     s.className = "status" + (isErr ? " err" : "");
     s.innerHTML = isErr ? msg : '<span class="spinner"></span> ' + msg;
   }
-
   function headers() {
     var h = { "Accept": "application/vnd.github+json" };
     if (state.token) h["Authorization"] = "Bearer " + state.token;
@@ -283,9 +396,7 @@
         state.hasMore = items.length === PER_PAGE;
         state.page++;
       })
-      .catch(function (e) {
-        state.error = e.message;
-      })
+      .catch(function (e) { state.error = e.message; })
       .then(function () {
         state.loading = false;
         render();
@@ -296,13 +407,11 @@
   function translate(text, cb) {
     if (!text) { cb(text); return; }
     if (state.cache[text] !== undefined) { cb(state.cache[text]); return; }
-    cb(null); // 标记翻译中
+    cb(null);
     var settled = false;
     var timer = setTimeout(function () {
       if (settled) return;
-      settled = true;
-      state.cache[text] = text;
-      cb(text); // 全部失败/超时 → 回退原文
+      settled = true; state.cache[text] = text; cb(text);
     }, 12000);
     function tryEndpoint(i) {
       if (settled) return;
@@ -315,9 +424,7 @@
       var ep = eps[i];
       var opts = {};
       if (ep.method === "POST") {
-        opts.method = "POST";
-        opts.headers = ep.headers || {};
-        opts.body = ep.body(text);
+        opts.method = "POST"; opts.headers = ep.headers || {}; opts.body = ep.body(text);
       }
       fetch(ep.url(text), opts)
         .then(function (r) { return r.json(); })
@@ -329,9 +436,7 @@
             state.cache[text] = t;
             try { localStorage.setItem("gh_tr_cache", JSON.stringify(state.cache)); } catch (e) {}
             cb(t);
-          } else {
-            tryEndpoint(i + 1);
-          }
+          } else { tryEndpoint(i + 1); }
         })
         .catch(function () { tryEndpoint(i + 1); });
     }
@@ -339,7 +444,7 @@
   }
 
   function applyTranslation() {
-    var nodes = document.querySelectorAll("[data-desc]");
+    var nodes = document.querySelectorAll("#list [data-desc]");
     var i = 0;
     (function next() {
       if (i >= nodes.length) return;
@@ -347,9 +452,8 @@
       var orig = el.getAttribute("data-desc");
       var btn = el.nextElementSibling;
       translate(orig, function (t) {
-        if (t === null) {
-          el.textContent = "（翻译中…）";
-        } else if (t && t !== orig) {
+        if (t === null) { el.textContent = "（翻译中…）"; }
+        else if (t && t !== orig) {
           el.innerHTML = escapeHtml(t) + '<span class="badge">译</span>';
           if (btn && btn.hasAttribute("data-translate")) btn.textContent = "看原文";
         }
@@ -368,13 +472,15 @@
     var lang = repo.language || "";
     var color = LANG_COLORS[lang] || "#8E8E93";
     var desc = repo.description || "";
+    var fav = isFav(repo.id);
     var html =
       '<div class="card" data-id="' + repo.id + '">' +
+        '<button class="favstar' + (fav ? ' on' : '') + '" data-fav="' + repo.id + '">' + (fav ? '★' : '☆') + '</button>' +
         '<div class="top">' +
-          '<img class="avatar" src="' + escapeHtml(repo.owner.avatar_url) + '" alt="" loading="lazy" />' +
+          '<img class="avatar" src="' + escapeHtml(repo.owner && repo.owner.avatar_url ? repo.owner.avatar_url : '') + '" alt="" loading="lazy" />' +
           '<div style="flex:1;min-width:0">' +
-            '<div class="repo-name">' + escapeHtml(repo.full_name) + '</div>' +
-            '<div class="owner">由 ' + escapeHtml(repo.owner.login) + ' 创建</div>' +
+            '<div class="repo-name">' + escapeHtml(repo.full_name || "") + '</div>' +
+            '<div class="owner">由 ' + escapeHtml(repo.owner && repo.owner.login ? repo.owner.login : "") + ' 创建</div>' +
           '</div>' +
         '</div>';
     if (desc) {
@@ -394,11 +500,11 @@
     var list = $("list");
     if (state.repos.length === 0 && !state.loading) {
       if (state.error === "rate") {
-        setStatus("请求过于频繁（已被限流）。可在「令牌」中填入 Token 提升到 5000 次/小时，或稍后重试。", true);
+        setStatus("请求过于频繁（已被限流）。可在「我的 → 设置」中填入 Token 提升到 5000 次/小时，或稍后重试。", true);
       } else if (state.error === "http401") {
-        setStatus('GitHub 拒绝了这个 Token（HTTP 401）。请打开顶部「令牌」面板，确认第 1 个框（GitHub Token）填的是有效的 Token——若里面是 <b>*.workers.dev 网址</b>、空白以外的乱填内容、或已撤销的旧 Token，请清空它（改用匿名访问）或换成有效 Token，再点「刷新」。', true);
+        setStatus('GitHub 拒绝了这个 Token（HTTP 401）。请打开底部头像 →「我的 → 设置」，确认第 1 个框（GitHub Token）填的是有效的 Token——若里面是 <b>*.workers.dev 网址</b>、空白以外的乱填内容、或已撤销的旧 Token，请清空它（改用匿名访问）或换成有效 Token，再点「刷新列表」。', true);
       } else if (state.error) {
-        setStatus("加载失败：" + state.error + "。请检查网络后点「刷新」。", true);
+        setStatus("加载失败：" + state.error + "。请检查网络后在「我的 → 设置」点「刷新列表」。", true);
       } else {
         setStatus("暂无数据", false);
       }
@@ -409,21 +515,26 @@
     list.innerHTML = state.repos.map(cardHTML).join("");
   }
 
+  function row(k, v) {
+    return '<div class="row"><span class="k">' + k + '</span><span class="val">' + v + '</span></div>';
+  }
+
   function openDetail(repo) {
     var lic = (repo.license && (repo.license.spdx_id && repo.license.spdx_id !== "NOASSERTION" ? repo.license.spdx_id : repo.license.name)) || "";
     var lang = repo.language || "";
     var color = LANG_COLORS[lang] || "#8E8E93";
     var topics = (repo.topics && repo.topics.length) ? repo.topics.join("、") : "";
+    var owner = repo.owner || {};
     var d = '<div class="dcard">' +
         '<div class="dtop">' +
-          '<img class="davatar" src="' + escapeHtml(repo.owner.avatar_url) + '" alt="" />' +
+          '<img class="davatar" src="' + escapeHtml(owner.avatar_url || "") + '" alt="" />' +
           '<div style="min-width:0">' +
-            '<div class="dfull">' + escapeHtml(repo.full_name) + '</div>' +
-            '<div class="downer">由 ' + escapeHtml(repo.owner.login) + ' 创建</div>' +
+            '<div class="dfull">' + escapeHtml(repo.full_name || "") + '</div>' +
+            '<div class="downer">由 ' + escapeHtml(owner.login || "") + ' 创建</div>' +
           '</div>' +
         '</div>';
     if (repo.description) {
-      d += '<div class="ddesc-wrap" style="display:flex;flex-direction:column;gap:8px;align-items:flex-start">' +
+      d += '<div style="display:flex;flex-direction:column;gap:8px;align-items:flex-start">' +
              '<div class="ddesc" id="ddesc" data-dorig="' + escapeHtml(repo.description) + '">' + escapeHtml(repo.description) + '</div>' +
              '<button class="transbtn" id="dTransBtn">看译文</button>' +
            '</div>';
@@ -431,12 +542,12 @@
     d += '<div class="grid">' +
         '<div class="stat"><div class="v">' + fmtCount(repo.stargazers_count) + '</div><div class="l">星标</div></div>' +
         '<div class="stat"><div class="v">' + fmtCount(repo.forks_count) + '</div><div class="l">派生</div></div>' +
-        '<div class="stat"><div class="v">' + repo.watchers_count + '</div><div class="l">关注</div></div>' +
-        '<div class="stat"><div class="v">' + (repo.open_issues_count || 0) + '</div><div class="l">开放 Issue</div></div>' +
+        '<div class="stat"><div class="v">' + fmtCount(repo.watchers_count) + '</div><div class="l">关注</div></div>' +
+        '<div class="stat"><div class="v">' + fmtCount(repo.open_issues_count) + '</div><div class="l">开放 Issue</div></div>' +
       '</div>';
     d += '<div class="rows">';
-    d += row("项目全称", escapeHtml(repo.full_name));
-    d += row("拥有者", escapeHtml(repo.owner.login));
+    d += row("项目全称", escapeHtml(repo.full_name || ""));
+    d += row("拥有者", escapeHtml(owner.login || ""));
     if (lang) d += row("主要语言", '<span class="dot" style="background:' + color + ';display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:5px"></span>' + escapeHtml(lang));
     if (lic) d += row("开源协议", escapeHtml(lic));
     if (repo.created_at) d += row("创建时间", fmtDate(repo.created_at));
@@ -444,12 +555,22 @@
     if (repo.size != null) d += row("仓库大小", repo.size + " KB");
     if (topics) d += row("主题标签", escapeHtml(topics));
     if (repo.homepage) d += row("项目主页", escapeHtml(repo.homepage));
-    d += row("GitHub 地址", '<a class="link" href="' + escapeHtml(repo.html_url) + '" target="_blank" rel="noopener">' + escapeHtml(repo.html_url) + '</a>');
+    d += row("GitHub 地址", '<a class="link" href="' + escapeHtml(repo.html_url || "") + '" target="_blank" rel="noopener">' + escapeHtml(repo.html_url || "") + '</a>');
     d += '</div>';
-    d += '<a class="openbtn" href="' + escapeHtml(repo.html_url) + '" target="_blank" rel="noopener">在 GitHub 中打开</a>';
+    d += '<button class="transbtn" id="dFavBtn" style="width:100%;margin-top:14px;padding:10px;font-size:14px"></button>';
+    d += '<a class="openbtn" href="' + escapeHtml(repo.html_url || "") + '" target="_blank" rel="noopener">在 GitHub 中打开</a>';
     d += '</div>';
     $("detail").innerHTML = d;
 
+    // 详情页收藏按钮
+    var fb = $("dFavBtn");
+    if (fb) {
+      var syncFav = function () { fb.textContent = isFav(repo.id) ? "★ 已收藏（点击取消）" : "☆ 收藏项目"; };
+      syncFav();
+      fb.addEventListener("click", function () { toggleFav(repo); syncFav(); });
+    }
+
+    // 详情页原文/译文切换
     var dEl = $("ddesc");
     var dBtn = $("dTransBtn");
     if (dEl && dBtn) {
@@ -464,31 +585,105 @@
       dBtn.addEventListener("click", function () {
         if (dBtn.textContent === "看原文") {
           dEl.innerHTML = escapeHtml(dOrig); dBtn.textContent = "看译文";
-        } else {
-          showTranslated();
-        }
+        } else { showTranslated(); }
       });
     }
     $("overlay").classList.add("open");
     $("overlay").scrollTop = 0;
   }
 
-  function row(k, v) {
-    return '<div class="row"><span class="k">' + k + '</span><span class="val">' + v + '</span></div>';
+  // ---- 用户中心 ----
+  var authMode = "login";
+  function toggleFav(repo) {
+    if (!getUser()) {
+      openUserCenter();
+      $("authErr").textContent = "登录后即可收藏项目（本地账号，注册一下即可）";
+      return;
+    }
+    var favs = getFavs();
+    var idx = -1;
+    for (var i = 0; i < favs.length; i++) { if (String(favs[i].id) === String(repo.id)) { idx = i; break; } }
+    if (idx >= 0) favs.splice(idx, 1); else favs.unshift(repo);
+    saveFavs(favs);
+    updateFavButtons();
+    if ($("userOverlay").classList.contains("open")) renderFavList();
+  }
+
+  function renderFavList() {
+    var u = getUser();
+    if (!u) return;
+    var favs = getFavs();
+    $("favCount").textContent = favs.length ? "(" + favs.length + ")" : "";
+    var box = $("favList");
+    if (!favs.length) { box.innerHTML = '<div class="empty">还没有收藏，去列表点右上角 ☆ 收藏吧</div>'; return; }
+    box.innerHTML = favs.map(function (r) {
+      return '<div class="favrow" data-openfav="' + r.id + '">' +
+          '<div style="flex:1;min-width:0">' +
+            '<div class="fname">' + escapeHtml(r.full_name || "") + '</div>' +
+            '<div class="fmeta">★ ' + fmtCount(r.stargazers_count) + (r.language ? ' · ' + escapeHtml(r.language) : '') + '</div>' +
+          '</div>' +
+          '<button class="favdel" data-delfav="' + r.id + '">移除</button>' +
+        '</div>';
+    }).join("");
+  }
+
+  function renderUserCenter() {
+    var u = getUser();
+    $("authGuest").style.display = u ? "none" : "block";
+    $("authUserBox").style.display = u ? "block" : "none";
+    $("favCard").style.display = u ? "block" : "none";
+    var glyph = $("avatarGlyph");
+    var btn = $("userBtn");
+    if (u) {
+      $("profileName").textContent = u;
+      $("profileAvatar").textContent = u.charAt(0).toUpperCase();
+      glyph.textContent = u.charAt(0).toUpperCase();
+      btn.classList.add("logged");
+    } else {
+      glyph.textContent = "👤";
+      btn.classList.remove("logged");
+    }
+    renderFavList();
+  }
+
+  function openUserCenter() {
+    renderUserCenter();
+    $("userOverlay").classList.add("open");
+    $("userOverlay").scrollTop = 0;
+  }
+
+  function doAuth() {
+    var u = $("authUser").value.trim();
+    var p = $("authPwd").value;
+    var err = $("authErr"); err.textContent = "";
+    if (!u || !p) { err.textContent = "请输入用户名和密码"; return; }
+    if (u.length > 24) { err.textContent = "用户名请控制在 24 个字符以内"; return; }
+    var users = getUsers();
+    if (authMode === "register") {
+      var p2 = $("authPwd2").value;
+      if (p !== p2) { err.textContent = "两次输入的密码不一致"; return; }
+      if (users[u]) { err.textContent = "该用户名已存在，请直接登录"; return; }
+      users[u] = hashPwd(p); saveUsers(users); setUser(u);
+    } else {
+      if (!users[u] || users[u] !== hashPwd(p)) { err.textContent = "用户名或密码错误"; return; }
+      setUser(u);
+    }
+    $("authPwd").value = ""; $("authPwd2").value = "";
+    renderUserCenter();
+    updateFavButtons();
   }
 
   // ---- 事件绑定 ----
   function bind() {
-    // 榜单切换
     $("seg").addEventListener("click", function (e) {
       var b = e.target.closest("button"); if (!b) return;
       state.ranking = b.getAttribute("data-rank");
       Array.prototype.forEach.call(this.children, function (c) { c.classList.remove("active"); });
       b.classList.add("active");
       fetchRepos(true);
+      window.scrollTo(0, 0);
     });
 
-    // 语言标签
     var chips = $("chips");
     LANGS.forEach(function (l) {
       var b = document.createElement("button");
@@ -500,45 +695,34 @@
         Array.prototype.forEach.call(chips.children, function (c) { c.classList.remove("active"); });
         b.classList.add("active");
         fetchRepos(true);
+        window.scrollTo(0, 0);
       });
       chips.appendChild(b);
     });
 
-    // 搜索
     var t;
     $("search").addEventListener("input", function () {
       clearTimeout(t);
       t = setTimeout(function () { state.q = this.value; fetchRepos(true); }.bind(this), 400);
     });
 
-    // 刷新
-    $("refreshBtn").addEventListener("click", function () { fetchRepos(true); });
+    $("refreshBtn").addEventListener("click", function () { fetchRepos(true); window.scrollTo(0, 0); });
 
-    // 设置/令牌
-    $("settingsBtn").addEventListener("click", function () {
-      var s = $("settings");
-      s.style.display = s.style.display === "none" ? "block" : "none";
-    });
+    // 设置项（并入「我的」页）
     $("tokenInput").value = state.token;
     $("tokenInput").addEventListener("change", function () {
       state.token = this.value.trim();
       if (/https?:\/\//i.test(state.token)) {
-        // 防误填：GitHub Token 不应是网址（Cloudflare 地址应填到第 2 个框）
         alert("这里应填 GitHub Token（一串 ghp_ / github_pat_ 开头的字符），不应是网址。\n若你想填 Cloudflare 翻译端点，请放到下面第 2 个输入框。");
-        this.value = "";
-        state.token = "";
+        this.value = ""; state.token = "";
       }
       localStorage.setItem("gh_token", state.token);
     });
-
-    // 自定义翻译端点（Cloudflare Workers AI 等）
     $("trEndpointInput").value = state.trEndpoint;
     $("trEndpointInput").addEventListener("change", function () {
       state.trEndpoint = this.value.trim();
       localStorage.setItem("gh_tr_endpoint", state.trEndpoint);
     });
-
-    // 翻译开关
     var tg = $("translateToggle");
     tg.checked = state.translate;
     tg.addEventListener("change", function () {
@@ -547,8 +731,57 @@
       if (this.checked) applyTranslation(); else render();
     });
 
-    // 列表点击：打开详情 / 翻译单条
+    // 用户中心开关
+    $("userBtn").addEventListener("click", openUserCenter);
+    $("userBackBtn").addEventListener("click", function () { $("userOverlay").classList.remove("open"); });
+
+    // 登录 / 注册 tab
+    var tabs = document.querySelectorAll("[data-auth]");
+    Array.prototype.forEach.call(tabs, function (b) {
+      b.addEventListener("click", function () {
+        authMode = b.getAttribute("data-auth");
+        Array.prototype.forEach.call(tabs, function (x) { x.classList.toggle("active", x === b); });
+        $("authPwd2").style.display = authMode === "register" ? "block" : "none";
+        $("authSubmit").textContent = authMode === "register" ? "注册并登录" : "登录";
+        $("authErr").textContent = "";
+      });
+    });
+    $("authSubmit").addEventListener("click", doAuth);
+    $("authPwd2").addEventListener("keydown", function (e) { if (e.key === "Enter") doAuth(); });
+    $("authUser").addEventListener("keydown", function (e) { if (e.key === "Enter") $("authPwd").focus(); });
+    $("logoutBtn").addEventListener("click", function () {
+      setUser("");
+      renderUserCenter();
+      updateFavButtons();
+    });
+
+    // 收藏列表：打开详情 / 移除
+    $("favList").addEventListener("click", function (e) {
+      var del = e.target.closest("[data-delfav]");
+      if (del) {
+        var did = del.getAttribute("data-delfav");
+        saveFavs(getFavs().filter(function (r) { return String(r.id) !== String(did); }));
+        renderFavList(); updateFavButtons();
+        return;
+      }
+      var rw = e.target.closest("[data-openfav]");
+      if (rw) {
+        var rid = rw.getAttribute("data-openfav");
+        var repo = getFavs().filter(function (r) { return String(r.id) === String(rid); })[0];
+        if (repo) { $("userOverlay").classList.remove("open"); openDetail(repo); }
+      }
+    });
+
+    // 列表点击：收藏 / 翻译单条 / 打开详情
     $("list").addEventListener("click", function (e) {
+      var fs = e.target.closest("[data-fav]");
+      if (fs) {
+        e.stopPropagation();
+        var fid = fs.getAttribute("data-fav");
+        var frepo = state.repos.filter(function (r) { return String(r.id) === String(fid); })[0];
+        if (frepo) toggleFav(frepo);
+        return;
+      }
       var tb = e.target.closest("[data-translate]");
       if (tb) {
         e.stopPropagation();
@@ -571,14 +804,20 @@
       }
       var card = e.target.closest(".card");
       if (card) {
-        var rid = card.getAttribute("data-id");
-        var repo2 = state.repos.filter(function (r) { return String(r.id) === rid; })[0];
+        var rid2 = card.getAttribute("data-id");
+        var repo2 = state.repos.filter(function (r) { return String(r.id) === String(rid2); })[0];
         if (repo2) openDetail(repo2);
       }
     });
 
-    // 返回
     $("backBtn").addEventListener("click", function () { $("overlay").classList.remove("open"); });
+
+    // 回到顶部
+    var toTop = $("toTop");
+    toTop.addEventListener("click", function () { window.scrollTo(0, 0); });
+    window.addEventListener("scroll", function () {
+      if (window.scrollY > 400) toTop.classList.add("show"); else toTop.classList.remove("show");
+    });
 
     // 无限滚动
     var io = new IntersectionObserver(function (entries) {
@@ -588,6 +827,7 @@
   }
 
   bind();
+  renderUserCenter();
   fetchRepos(true);
 })();
 </script>

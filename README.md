@@ -1,6 +1,6 @@
-# GitHub 高星项目（iOS）
+# SGit（iOS）
 
-一个 iOS App，用于获取并展示 GitHub 上的高星（Star 数高）开源项目。
+**SGit** 是一个 iOS App，用于获取并展示 GitHub 上的高星（Star 数高）开源项目。App 图标为黑色像素风「章鱼猫（Octocat）」，桌面显示名为 **SGit**。
 
 > **架构**：原生 SwiftUI 仅作为一个 `WKWebView` 网页壳，真实界面与逻辑都运行在托管于 **GitHub Pages** 的网页（`index.html`）中。因此**后续界面/功能变更只需修改网页并推送**，GitHub Pages 会自动发布，无需重新编译 IPA、也不消耗 Actions 构建额度。
 
@@ -14,11 +14,17 @@
 | 高星榜单 | 默认展示全站 Star 数最高的仓库（按 stars 降序） |
 | 升星最快板块 | 按「近 30 天创建 + Star 降序」展示近期增长最快的项目 |
 | 横向分类 | 顶部横向滚动的语言分类标签（Swift / Python / Go / Rust 等），点击即时筛选 |
-| 关键字搜索 | 顶部搜索框按关键字搜索，结果仍以热度（Star）排序 |
+| 底部搜索栏 | 固定在底部的搜索框，按关键字搜索，结果仍以热度（Star）排序 |
+| 用户中心 | 底部搜索栏右侧的**用户头像**按钮，点击打开「我的」二级页 |
+| 登录 / 注册 | 纯本地账号（用户名 + 密码，仅存本机、不上传），登录后头像显示用户名首字母 |
+| 收藏管理 | 登录后可在卡片 / 详情页点 ☆ 收藏，在「我的 → 我的收藏」中查看、打开详情、移除；按账号隔离 |
+| 设置（原齿轮） | 原顶部「齿轮 / 令牌」设置已整体并入「我的」页：GitHub Token、Cloudflare 翻译端点、翻译开关、刷新列表 |
 | 下拉刷新 / 无限滚动 | 刷新按钮 + 滚动到底部自动分页加载 |
 | 项目详情 | 弹层明细列表，逐项列出全称 / 拥有者 / 语言 / 星标 / 派生 / 关注 / 开放 Issue / 创建与更新时间 / 开源协议 / 主题标签 / 主页，并一键跳转 GitHub |
-| 描述翻译 | 开启「翻译描述」开关后自动把仓库英文描述翻译成中文；详情页与每张卡片均可「看原文 / 看译文」切换。内置 **Google + MyMemory** 两个免 key 公共端点自动兜底；并支持在「令牌」面板填入**自建 Cloudflare Workers AI 翻译端点**，在国内稳定翻译、不受公共端点限流影响 |
-| 访问令牌 | 网页内「令牌」入口可填写 GitHub Token，将速率限制从 60 次/小时提升到 5000 次/小时（仅存于本机浏览器） |
+| 描述翻译 | 默认开启，自动把仓库英文描述翻译成中文；详情页与每张卡片均可「看原文 / 看译文」切换。内置 **Google + MyMemory** 两个免 key 公共端点自动兜底；并支持在「我的 → 设置」填入**自建 Cloudflare Workers AI 翻译端点**，在国内稳定翻译、不受公共端点限流影响 |
+| 访问令牌 | 「我的 → 设置」可填写 GitHub Token，将速率限制从 60 次/小时提升到 5000 次/小时（仅存于本机浏览器） |
+
+> 说明：「登录 / 注册 / 收藏」为**纯前端本地实现**（数据存在 App 的 `localStorage`，不联网、不跨设备同步），用于演示产品形态；若需要真正的账号系统与云端收藏，需接入后端服务。
 
 ## 运行方式
 
@@ -36,7 +42,7 @@
 GET https://api.github.com/search/repositories?q=stars:>1&sort=stars&order=desc
 ```
 
-未登录状态下该接口每小时限 60 次请求。如需更高额度，在 App 内「设置」填入一个具备 `public_repo` 只读权限的 Personal Access Token 即可。
+未登录状态下该接口每小时限 60 次请求。如需更高额度，在「我的 → 设置」填入一个具备 `public_repo` 只读权限的 Personal Access Token 即可。
 
 ## 项目结构
 
@@ -48,6 +54,8 @@ GitHubStars/
 └── GitHubStars/
     ├── GitHubStarsApp.swift      # @main 入口
     ├── WebShellView.swift        # WKWebView 网页壳（加载上面的 index.html）
+    ├── Info.plist                # 桌面显示名 SGit + 图标声明
+    ├── Assets.xcassets/AppIcon.appiconset/AppIcon.png   # SGit 图标
     └── （其余 SwiftUI 视图为历史实现，已不再作为主界面使用）
 └── cloudflare/
     ├── worker.js                  # 自建翻译服务（Cloudflare Workers AI）
@@ -59,7 +67,7 @@ GitHubStars/
 ## 可扩展方向
 
 - 增加「本周 / 本月 Trending」时间维度筛选（`created:>YYYY-MM-DD`）。
-- 收藏功能（本地 Core Data / SwiftData 持久化）。
+- 云端账号与跨设备收藏同步（需接入后端）。
 - 深色模式与主题色细化。
 - 增加仓库 README 预览。
 
@@ -99,7 +107,7 @@ GitHubStars/
    wrangler deploy
    ```
 4. 终端会输出你的端点地址，形如 `https://gh-stars-translate.<你的子域>.workers.dev`
-5. 在 App 的「令牌」面板里，把该地址填到 **Cloudflare 翻译端点** 一栏并保存。
+5. 在 App 底部头像 →「我的 → 设置」里，把该地址填到 **Cloudflare 翻译端点** 一栏并保存。
 
 之后 App 会优先使用你自己的翻译服务，国内稳定可用，且不受公共端点限流影响。
 
