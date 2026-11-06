@@ -395,6 +395,8 @@
     if (state.repos.length === 0 && !state.loading) {
       if (state.error === "rate") {
         setStatus("请求过于频繁（已被限流）。可在「令牌」中填入 Token 提升到 5000 次/小时，或稍后重试。", true);
+      } else if (state.error === "http401") {
+        setStatus('GitHub 拒绝了这个 Token（HTTP 401）。请打开顶部「令牌」面板，确认第 1 个框（GitHub Token）填的是有效的 Token——若里面是 <b>*.workers.dev 网址</b>、空白以外的乱填内容、或已撤销的旧 Token，请清空它（改用匿名访问）或换成有效 Token，再点「刷新」。', true);
       } else if (state.error) {
         setStatus("加载失败：" + state.error + "。请检查网络后点「刷新」。", true);
       } else {
@@ -520,6 +522,12 @@
     $("tokenInput").value = state.token;
     $("tokenInput").addEventListener("change", function () {
       state.token = this.value.trim();
+      if (/https?:\/\//i.test(state.token)) {
+        // 防误填：GitHub Token 不应是网址（Cloudflare 地址应填到第 2 个框）
+        alert("这里应填 GitHub Token（一串 ghp_ / github_pat_ 开头的字符），不应是网址。\n若你想填 Cloudflare 翻译端点，请放到下面第 2 个输入框。");
+        this.value = "";
+        state.token = "";
+      }
       localStorage.setItem("gh_token", state.token);
     });
 
