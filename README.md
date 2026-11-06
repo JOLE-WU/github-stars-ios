@@ -116,3 +116,19 @@ GitHubStars/
 - Worker 代码：`cloudflare/worker.js`，接收 `POST {text}`，返回 `{translatedText}`，并带 CORS 头供网页调用。
 - 免费额度 **10,000 神经元/天**（约数百条翻译），超出后自动回退到 Google / MyMemory。
 - 翻译失败/超时会回退显示原文，不会让 App 崩溃。
+- **失败结果不写入缓存**：翻译成功后才缓存译文，失败下次会自动重试；App 启动时也会自动清理旧版遗留的「失败缓存」。
+
+### 翻译排障
+
+在 App「我的 → 设置」里点 **「测试翻译」**，会逐个端点实测并把成功/失败原因直接显示出来：
+
+| 诊断输出 | 含义与处理 |
+| --- | --- |
+| `#1 ✅ 译文：…` | 自建 Worker 正常，翻译已恢复 |
+| `#1 ❌ … AI binding missing` | `wrangler.toml` 缺 `[ai] binding = "AI"`，重新 `wrangler deploy` |
+| `#1 ❌ … target_lang=… → …` | Workers AI 模型调用报错，确认账号已启用 Workers AI，并重新部署最新版 `worker.js` |
+| `#1 ❌ 超时 / 请求失败` | 当前网络连不上 `workers.dev`，换网络或稍后重试 |
+| 全部 ❌ | 公共端点在国内也不可用；等 MyMemory 次日额度重置，或修好自建 Worker |
+
+也可在浏览器直接打开 `https://xxx.workers.dev`，返回 JSON 里 `ai_binding` 应为 `true`。
+若曾翻译失败过，可点 **「清除翻译缓存」** 后刷新列表强制重试。

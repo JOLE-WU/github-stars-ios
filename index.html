@@ -229,7 +229,12 @@
       <p class="hint">部署免费的 Cloudflare Workers AI 翻译服务后，把地址粘贴到这里，即可在国内稳定翻译、不受公共接口限流影响。仅保存在本机。</p>
 
       <label class="switch"><input type="checkbox" id="translateToggle" /> 自动翻译描述为中文</label>
-      <div style="margin-top:14px"><button class="btn" id="refreshBtn">刷新列表</button></div>
+      <div style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn" id="refreshBtn">刷新列表</button>
+        <button class="btn" id="testTrBtn" style="background:#444;color:#fff">测试翻译</button>
+        <button class="btn" id="clearTrCacheBtn" style="background:#444;color:#fff">清除翻译缓存</button>
+      </div>
+      <pre id="trDiag" style="display:none;margin-top:10px;padding:10px;background:#111;color:#9fe6a0;border-radius:8px;font-size:12px;white-space:pre-wrap;word-break:break-all"></pre>
     </div>
   </div>
 </div>
@@ -316,6 +321,15 @@
     trEndpoint: localStorage.getItem("gh_tr_endpoint") || "",
     cache: JSON.parse(localStorage.getItem("gh_tr_cache") || "{}")
   };
+
+  // 启动时清理历史"失败缓存"：旧版会把翻译失败时的原文写进缓存，导致以后永不重试。
+  (function purgeBadCache() {
+    var c = state.cache, dirty = false;
+    Object.keys(c).forEach(function (k) {
+      if (!c[k] || c[k] === k) { delete c[k]; dirty = true; }
+    });
+    if (dirty) { try { localStorage.setItem("gh_tr_cache", JSON.stringify(c)); } catch (e) {} }
+  })();
 
   // 自定义翻译端点（Cloudflare Workers AI 等）优先，再回退到公共免 key 端点。
   function getEndpoints() {
@@ -404,62 +418,77 @@
       });
   }
 
+  // 翻译单条文本：逐个端点尝试，任一成功即回调；全部失败回退原文。
+  // 关键：只有成功才写缓存，失败绝不缓存（否则以后永远不再重试）。
   function translate(text, cb) {
     if (!text) { cb(text); return; }
-    if (state.cache[text] !== undefined) { cb(state.cache[text]); return; }
-    cb(null);
+    if (state.cache[text]) { cb(state.cache[text]); return; }
+    var eps = getEndpoints();
     var settled = false;
-    var timer = setTimeout(function () {
+    var timer = setTimeout(function () { done(text); }, 20000);
+    function done(t) {
       if (settled) return;
-      settled = true; state.cache[text] = text; cb(text);
-    }, 12000);
+      settled = true; clearTimeout(timer);
+      cb(t || text);
+    }
     function tryEndpoint(i) {
       if (settled) return;
-      var eps = getEndpoints();
-      if (i >= eps.length) {
-        settled = true; clearTimeout(timer);
-        state.cache[text] = text; cb(text);
-        return;
-      }
+      if (i >= eps.length) { done(text); return; }
       var ep = eps[i];
       var opts = {};
       if (ep.method === "POST") {
         opts.method = "POST"; opts.headers = ep.headers || {}; opts.body = ep.body(text);
       }
+      var advanced = false;
+      function next() {
+        if (advanced) return;
+        advanced = true; clearTimeout(et);
+        tryEndpoint(i + 1);
+      }
+      // 自定义 Worker 给 10s，公共端点 5s，避免国内访问 Google 卡死整条链
+      var perTimeout = ep.method === "POST" ? 10000 : 5000;
+      var et = setTimeout(next, perTimeout);
       fetch(ep.url(text), opts)
         .then(function (r) { return r.json(); })
         .then(function (d) {
+          clearTimeout(et);
+          if (settled) return;
           var t = ep.parse(d);
-          if (t) {
-            if (settled) return;
+          if (t && t !== text) {
             settled = true; clearTimeout(timer);
             state.cache[text] = t;
             try { localStorage.setItem("gh_tr_cache", JSON.stringify(state.cache)); } catch (e) {}
             cb(t);
-          } else { tryEndpoint(i + 1); }
+          } else { next(); }
         })
-        .catch(function () { tryEndpoint(i + 1); });
+        .catch(function () { clearTimeout(et); next(); });
     }
     tryEndpoint(0);
   }
 
+  // 并发翻译（同时 5 条），避免 30 条串行等待导致长时间停在"翻译中…"
   function applyTranslation() {
-    var nodes = document.querySelectorAll("#list [data-desc]");
-    var i = 0;
-    (function next() {
-      if (i >= nodes.length) return;
-      var el = nodes[i++];
+    var nodes = Array.prototype.slice.call(document.querySelectorAll("#list [data-desc]"));
+    var idx = 0, CONC = 5;
+    function worker() {
+      if (idx >= nodes.length) return;
+      var el = nodes[idx++];
       var orig = el.getAttribute("data-desc");
       var btn = el.nextElementSibling;
-      translate(orig, function (t) {
-        if (t === null) { el.textContent = "（翻译中…）"; }
-        else if (t && t !== orig) {
+      function paint(t) {
+        if (t && t !== orig) {
           el.innerHTML = escapeHtml(t) + '<span class="badge">译</span>';
           if (btn && btn.hasAttribute("data-translate")) btn.textContent = "看原文";
+        } else {
+          el.innerHTML = escapeHtml(orig); // 失败保留原文，不再替换成错误提示
         }
-        setTimeout(next, 250);
-      });
-    })();
+        worker();
+      }
+      if (state.cache[orig]) { paint(state.cache[orig]); return; }
+      el.textContent = "（翻译中…）";
+      translate(orig, paint);
+    }
+    for (var k = 0; k < CONC; k++) worker();
   }
 
   function escapeHtml(s) {
@@ -576,9 +605,10 @@
     if (dEl && dBtn) {
       var dOrig = dEl.getAttribute("data-dorig");
       function showTranslated() {
+        dBtn.textContent = "翻译中…";
         translate(dOrig, function (t) {
           if (t && t !== dOrig) { dEl.innerHTML = escapeHtml(t) + '<span class="badge">译</span>'; dBtn.textContent = "看原文"; }
-          else { dEl.textContent = "（翻译失败，已显示原文）"; dBtn.textContent = "看译文"; }
+          else { dEl.innerHTML = escapeHtml(dOrig); dBtn.textContent = "重试翻译"; }
         });
       }
       if (state.translate) showTranslated();
@@ -729,6 +759,48 @@
       state.translate = this.checked;
       localStorage.setItem("gh_translate", this.checked ? "1" : "0");
       if (this.checked) applyTranslation(); else render();
+    });
+
+    // 翻译诊断：逐个端点实测，把成功/失败原因直接显示出来
+    $("testTrBtn").addEventListener("click", function () {
+      var box = $("trDiag");
+      box.style.display = "block";
+      var eps = getEndpoints();
+      var probe = "A free and open source note taking application.";
+      var lines = ["端点数：" + eps.length + "　自定义端点：" + (state.trEndpoint || "未填")];
+      box.textContent = lines.join("\n") + "\n正在测试…";
+      var i = 0;
+      (function run() {
+        if (i >= eps.length) {
+          box.textContent = lines.join("\n") + "\n\n全部失败：请确认 Worker 已启用 Workers AI 且网络可达；或明日再试公共端点。";
+          return;
+        }
+        var ep = eps[i], n = i + 1, done = false;
+        var opts = {};
+        if (ep.method === "POST") { opts.method = "POST"; opts.headers = ep.headers || {}; opts.body = ep.body(probe); }
+        function step(msg) {
+          if (done) return;
+          done = true; clearTimeout(to);
+          lines.push(msg); box.textContent = lines.join("\n");
+          i++; run();
+        }
+        var to = setTimeout(function () { step("#" + n + " ❌ 超时(6s)"); }, 6000);
+        fetch(ep.url(probe), opts)
+          .then(function (r) { return r.text(); })
+          .then(function (raw) {
+            var d = null; try { d = JSON.parse(raw); } catch (e) {}
+            var t = d ? ep.parse(d) : null;
+            step("#" + n + (t ? " ✅ 译文：" + t : " ❌ 无译文｜返回：" + raw.slice(0, 180)));
+          })
+          .catch(function (e) { step("#" + n + " ❌ 请求失败：" + e.message); });
+      })();
+    });
+    $("clearTrCacheBtn").addEventListener("click", function () {
+      state.cache = {};
+      try { localStorage.removeItem("gh_tr_cache"); } catch (e) {}
+      var box = $("trDiag");
+      box.style.display = "block";
+      box.textContent = "已清除翻译缓存。请点「刷新列表」重新翻译。";
     });
 
     // 用户中心开关
