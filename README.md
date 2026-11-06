@@ -19,7 +19,7 @@
 ## 运行方式
 
 1. 在 Mac 上安装 Xcode 15 或更高版本。
-2. 双击打开 `GitHubStars/GitHubStars.xcodeproj`。
+2. 双击打开仓库根目录下的 `GitHubStars.xcodeproj`。
 3. 选择模拟器（如 iPhone 15）或真机，点击运行（⌘R）。
 
 > 若 Xcode 提示签名问题：进入 `TARGETS → GitHubStars → Signing & Capabilities`，把 **Bundle Identifier** 改成你自己的（例如 `com.yourname.GitHubStars`），并选择你的开发团队即可。
