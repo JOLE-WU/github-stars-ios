@@ -1,0 +1,46 @@
+name: Build iOS IPA
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Show Xcode version
+        run: xcodebuild -version
+
+      # 编译并打包「未签名 IPA」。
+      # 说明：免费 Apple ID 无法在 CI 签出可安装 IPA，此处产物用于验证构建，
+      # 以及供你在本地用免费账号（Xcode / AltStore / Sideloadly）重新签名后安装。
+      - name: Build unsigned IPA (arm64)
+        run: |
+          set -euo pipefail
+          xcodebuild \
+            -project GitHubStars/GitHubStars.xcodeproj \
+            -target GitHubStars \
+            -configuration Release \
+            -destination 'generic/platform=iOS' \
+            -archivePath "$PWD/build/GitHubStars.xcarchive" \
+            ARCHS=arm64 \
+            ONLY_ACTIVE_ARCH=NO \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGN_IDENTITY="" \
+            clean archive
+
+          mkdir -p build/ipa/Payload
+          cp -R "$PWD/build/GitHubStars.xcarchive/Products/Applications/GitHubStars.app" build/ipa/Payload/
+          cd build/ipa
+          zip -r GitHubStars.ipa Payload
+
+      - name: Upload IPA artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: GitHubStars-unsigned-ipa
+          path: build/ipa/GitHubStars.ipa
+          if-no-files-found: error
