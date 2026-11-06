@@ -129,6 +129,8 @@
     <div class="settings" id="settings" style="display:none">
       <input id="tokenInput" type="password" placeholder="粘贴 GitHub Token（可选，提升额度）" />
       <p>未登录每小时仅 60 次请求；填入具备 public_repo 只读权限的 Token 可提升到 5000 次。仅保存在本机浏览器。</p>
+      <input id="trEndpointInput" type="text" placeholder="Cloudflare 翻译端点（可选，国内更稳）" style="margin-top:8px" />
+      <p>可部署免费的 Cloudflare Workers AI 翻译服务（见 README 的「自建翻译服务」），部署后把地址粘贴到这里，即可在国内稳定翻译、不再受 Google/MyMemory 限流影响。仅保存在本机浏览器。</p>
     </div>
   </header>
 
@@ -194,8 +196,28 @@
     repos: [],
     token: localStorage.getItem("gh_token") || "",
     translate: localStorage.getItem("gh_translate") !== "0",
+    trEndpoint: localStorage.getItem("gh_tr_endpoint") || "",
     cache: JSON.parse(localStorage.getItem("gh_tr_cache") || "{}")
   };
+
+  // 自定义翻译端点（Cloudflare Workers AI 等）优先，再回退到公共免 key 端点。
+  function getEndpoints() {
+    var list = [];
+    if (state.trEndpoint) {
+      list.push({
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: function (q) { return JSON.stringify({ text: q }); },
+        url: function () { return state.trEndpoint; },
+        parse: function (d) {
+          var t = d && (d.translatedText || d.translated_text);
+          return t ? t : null;
+        }
+      });
+    }
+    TR_ENDPOINTS.forEach(function (e) { list.push(e); });
+    return list;
+  }
 
   var $ = function (id) { return document.getElementById(id); };
 
@@ -284,13 +306,20 @@
     }, 12000);
     function tryEndpoint(i) {
       if (settled) return;
-      if (i >= TR_ENDPOINTS.length) {
+      var eps = getEndpoints();
+      if (i >= eps.length) {
         settled = true; clearTimeout(timer);
         state.cache[text] = text; cb(text);
         return;
       }
-      var ep = TR_ENDPOINTS[i];
-      fetch(ep.url(text))
+      var ep = eps[i];
+      var opts = {};
+      if (ep.method === "POST") {
+        opts.method = "POST";
+        opts.headers = ep.headers || {};
+        opts.body = ep.body(text);
+      }
+      fetch(ep.url(text), opts)
         .then(function (r) { return r.json(); })
         .then(function (d) {
           var t = ep.parse(d);
@@ -492,6 +521,13 @@
     $("tokenInput").addEventListener("change", function () {
       state.token = this.value.trim();
       localStorage.setItem("gh_token", state.token);
+    });
+
+    // 自定义翻译端点（Cloudflare Workers AI 等）
+    $("trEndpointInput").value = state.trEndpoint;
+    $("trEndpointInput").addEventListener("change", function () {
+      state.trEndpoint = this.value.trim();
+      localStorage.setItem("gh_tr_endpoint", state.trEndpoint);
     });
 
     // 翻译开关
