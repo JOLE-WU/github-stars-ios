@@ -150,7 +150,26 @@
   "use strict";
 
   var API = "https://api.github.com/search/repositories";
-  var TR = "https://api.mymemory.translated.net/get";
+  // 翻译服务：按顺序尝试多个免 key 端点，任一成功即用（提升不同网络环境下的可用性）。
+  var TR_ENDPOINTS = [
+    {
+      url: function (q) {
+        return "https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=zh-CN&dt=t&q=" + encodeURIComponent(q);
+      },
+      parse: function (d) {
+        try { return d[0].map(function (s) { return s[0]; }).join(""); } catch (e) { return null; }
+      }
+    },
+    {
+      url: function (q) {
+        return "https://api.mymemory.translated.net/get?q=" + encodeURIComponent(q) + "&langpair=en|zh-CN";
+      },
+      parse: function (d) {
+        var t = d && d.responseData && d.responseData.translatedText;
+        return (t && !/MYMEMORY WARNING/i.test(t)) ? t : null;
+      }
+    }
+  ];
   var PER_PAGE = 30;
 
   var LANGS = [null, "Swift", "Python", "JavaScript", "TypeScript", "Go", "Rust",
@@ -174,7 +193,7 @@
     error: null,
     repos: [],
     token: localStorage.getItem("gh_token") || "",
-    translate: localStorage.getItem("gh_translate") === "1",
+    translate: localStorage.getItem("gh_translate") !== "0",
     cache: JSON.parse(localStorage.getItem("gh_tr_cache") || "{}")
   };
 
@@ -256,16 +275,38 @@
     if (!text) { cb(text); return; }
     if (state.cache[text] !== undefined) { cb(state.cache[text]); return; }
     cb(null); // 标记翻译中
-    fetch(TR + "?q=" + encodeURIComponent(text) + "&langpair=en|zh-CN")
-      .then(function (r) { return r.json(); })
-      .then(function (d) {
-        var t = d && d.responseData && d.responseData.translatedText;
-        if (!t || /MYMEMORY WARNING/i.test(t)) t = text;
-        state.cache[text] = t;
-        try { localStorage.setItem("gh_tr_cache", JSON.stringify(state.cache)); } catch (e) {}
-        cb(t);
-      })
-      .catch(function () { state.cache[text] = text; cb(text); });
+    var settled = false;
+    var timer = setTimeout(function () {
+      if (settled) return;
+      settled = true;
+      state.cache[text] = text;
+      cb(text); // 全部失败/超时 → 回退原文
+    }, 12000);
+    function tryEndpoint(i) {
+      if (settled) return;
+      if (i >= TR_ENDPOINTS.length) {
+        settled = true; clearTimeout(timer);
+        state.cache[text] = text; cb(text);
+        return;
+      }
+      var ep = TR_ENDPOINTS[i];
+      fetch(ep.url(text))
+        .then(function (r) { return r.json(); })
+        .then(function (d) {
+          var t = ep.parse(d);
+          if (t) {
+            if (settled) return;
+            settled = true; clearTimeout(timer);
+            state.cache[text] = t;
+            try { localStorage.setItem("gh_tr_cache", JSON.stringify(state.cache)); } catch (e) {}
+            cb(t);
+          } else {
+            tryEndpoint(i + 1);
+          }
+        })
+        .catch(function () { tryEndpoint(i + 1); });
+    }
+    tryEndpoint(0);
   }
 
   function applyTranslation() {
@@ -275,11 +316,13 @@
       if (i >= nodes.length) return;
       var el = nodes[i++];
       var orig = el.getAttribute("data-desc");
+      var btn = el.nextElementSibling;
       translate(orig, function (t) {
         if (t === null) {
           el.textContent = "（翻译中…）";
         } else if (t && t !== orig) {
           el.innerHTML = escapeHtml(t) + '<span class="badge">译</span>';
+          if (btn && btn.hasAttribute("data-translate")) btn.textContent = "看原文";
         }
         setTimeout(next, 250);
       });
@@ -349,7 +392,10 @@
           '</div>' +
         '</div>';
     if (repo.description) {
-      d += '<div class="ddesc" data-desc="' + escapeHtml(repo.description) + '">' + escapeHtml(repo.description) + '</div>';
+      d += '<div class="ddesc-wrap" style="display:flex;flex-direction:column;gap:8px;align-items:flex-start">' +
+             '<div class="ddesc" id="ddesc" data-dorig="' + escapeHtml(repo.description) + '">' + escapeHtml(repo.description) + '</div>' +
+             '<button class="transbtn" id="dTransBtn">看译文</button>' +
+           '</div>';
     }
     d += '<div class="grid">' +
         '<div class="stat"><div class="v">' + fmtCount(repo.stargazers_count) + '</div><div class="l">星标</div></div>' +
@@ -373,10 +419,23 @@
     d += '</div>';
     $("detail").innerHTML = d;
 
-    if (state.translate) {
-      var el = $("detail").querySelector("[data-desc]");
-      if (el) translate(el.getAttribute("data-desc"), function (t) {
-        if (t && t !== el.getAttribute("data-desc")) el.innerHTML = escapeHtml(t) + '<span class="badge">译</span>';
+    var dEl = $("ddesc");
+    var dBtn = $("dTransBtn");
+    if (dEl && dBtn) {
+      var dOrig = dEl.getAttribute("data-dorig");
+      function showTranslated() {
+        translate(dOrig, function (t) {
+          if (t && t !== dOrig) { dEl.innerHTML = escapeHtml(t) + '<span class="badge">译</span>'; dBtn.textContent = "看原文"; }
+          else { dEl.textContent = "（翻译失败，已显示原文）"; dBtn.textContent = "看译文"; }
+        });
+      }
+      if (state.translate) showTranslated();
+      dBtn.addEventListener("click", function () {
+        if (dBtn.textContent === "看原文") {
+          dEl.innerHTML = escapeHtml(dOrig); dBtn.textContent = "看译文";
+        } else {
+          showTranslated();
+        }
       });
     }
     $("overlay").classList.add("open");
@@ -453,11 +512,16 @@
         var repo = state.repos.filter(function (r) { return String(r.id) === id; })[0];
         var descEl = tb.previousElementSibling;
         if (repo && descEl) {
-          tb.textContent = "翻译中…";
-          translate(repo.description, function (t) {
-            if (t && t !== repo.description) { descEl.innerHTML = escapeHtml(t) + '<span class="badge">译</span>'; tb.textContent = "已翻译"; }
-            else { tb.textContent = "翻译此描述"; }
-          });
+          var orig = repo.description;
+          if (tb.textContent === "看原文") {
+            descEl.innerHTML = escapeHtml(orig); tb.textContent = "看译文";
+          } else {
+            tb.textContent = "翻译中…";
+            translate(orig, function (t) {
+              if (t && t !== orig) { descEl.innerHTML = escapeHtml(t) + '<span class="badge">译</span>'; tb.textContent = "看原文"; }
+              else { descEl.innerHTML = escapeHtml(orig); tb.textContent = "看译文"; }
+            });
+          }
         }
         return;
       }
