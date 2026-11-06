@@ -16,7 +16,8 @@ jobs:
         run: xcodebuild -version
 
       # 编译并打包「未签名 IPA」。
-      # 说明：免费 Apple ID 无法在 CI 签出可安装 IPA，此处产物用于验证构建，
+      # 说明：archive 动作要求 -scheme，这里改用 build + 手动打包，避免依赖共享 scheme；
+      # 免费 Apple ID 无法在 CI 签出可安装 IPA，此处产物用于验证构建，
       # 以及供你在本地用免费账号（Xcode / AltStore / Sideloadly）重新签名后安装。
       - name: Build unsigned IPA (arm64)
         run: |
@@ -26,15 +27,20 @@ jobs:
             -target GitHubStars \
             -configuration Release \
             -destination 'generic/platform=iOS' \
-            -archivePath "$PWD/build/GitHubStars.xcarchive" \
             ARCHS=arm64 \
             ONLY_ACTIVE_ARCH=NO \
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGN_IDENTITY="" \
-            clean archive
+            SYMROOT="$PWD/build" \
+            OBJROOT="$PWD/build/obj" \
+            build
 
+          APP_PATH="$PWD/build/Release-iphoneos/GitHubStars.app"
+          if [ ! -d "$APP_PATH" ]; then
+            echo "ERROR: 未找到构建产物 $APP_PATH"; exit 1
+          fi
           mkdir -p build/ipa/Payload
-          cp -R "$PWD/build/GitHubStars.xcarchive/Products/Applications/GitHubStars.app" build/ipa/Payload/
+          cp -R "$APP_PATH" build/ipa/Payload/
           cd build/ipa
           zip -r GitHubStars.ipa Payload
 
