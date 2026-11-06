@@ -16,6 +16,7 @@
 		A10000000000000000000027 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000017 /* SettingsView.swift */; };
 		A10000000000000000000028 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000018 /* Assets.xcassets */; };
 		A10000000000000000000029 /* Appearance.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000000000000000000001A /* Appearance.swift */; };
+		A1000000000000000000002A /* WebShellView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000000000000000000001B /* WebShellView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -29,6 +30,7 @@
 		A10000000000000000000017 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		A10000000000000000000018 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		A1000000000000000000001A /* Appearance.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Appearance.swift; sourceTree = "<group>"; };
+		A1000000000000000000001B /* WebShellView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebShellView.swift; sourceTree = "<group>"; };
 		A10000000000000000000019 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -74,6 +76,7 @@
 				A10000000000000000000011 /* Repo.swift */,
 				A10000000000000000000012 /* GitHubService.swift */,
 				A1000000000000000000001A /* Appearance.swift */,
+				A1000000000000000000001B /* WebShellView.swift */,
 				A10000000000000000000014 /* RepoListView.swift */,
 				A10000000000000000000015 /* RepoRowView.swift */,
 				A10000000000000000000016 /* RepoDetailView.swift */,
@@ -156,6 +159,7 @@
 				A10000000000000000000021 /* Repo.swift in Sources */,
 				A10000000000000000000022 /* GitHubService.swift in Sources */,
 				A10000000000000000000029 /* Appearance.swift in Sources */,
+				A1000000000000000000002A /* WebShellView.swift in Sources */,
 				A10000000000000000000024 /* RepoListView.swift in Sources */,
 				A10000000000000000000025 /* RepoRowView.swift in Sources */,
 				A10000000000000000000026 /* RepoDetailView.swift in Sources */,

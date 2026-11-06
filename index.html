@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>GitHub 高星项目</title>
+<style>
+  :root {
+    --bg: #f2f2f7;
+    --card: #ffffff;
+    --fg: #1c1c1e;
+    --fg2: #8e8e93;
+    --accent: #007aff;
+    --sep: rgba(60,60,67,0.15);
+    --star: #ff9500;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #000000;
+      --card: #1c1c1e;
+      --fg: #ffffff;
+      --fg2: #8e8e93;
+      --accent: #0a84ff;
+      --sep: rgba(84,84,88,0.6);
+    }
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", "Segoe UI", Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--fg);
+    -webkit-font-smoothing: antialiased;
+  }
+  .app { max-width: 720px; margin: 0 auto; padding: 0 12px calc(40px + env(safe-area-inset-bottom)); }
+
+  header { padding: 14px 0 6px; position: sticky; top: 0; background: var(--bg); z-index: 5; }
+  .title { font-size: 22px; font-weight: 700; margin: 0 0 2px; }
+  .subtitle { font-size: 13px; color: var(--fg2); margin: 0 0 10px; }
+
+  .seg { display: flex; background: var(--card); border-radius: 10px; padding: 3px; margin-bottom: 10px; }
+  .seg button { flex: 1; border: none; background: transparent; color: var(--fg); font-size: 14px; padding: 8px 0; border-radius: 8px; font-weight: 600; cursor: pointer; }
+  .seg button.active { background: var(--accent); color: #fff; }
+
+  .search { width: 100%; padding: 10px 12px; border: 1px solid var(--sep); border-radius: 10px; background: var(--card); color: var(--fg); font-size: 15px; margin-bottom: 10px; outline: none; }
+
+  .chips { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 10px; -webkit-overflow-scrolling: touch; }
+  .chips::-webkit-scrollbar { display: none; }
+  .chip { flex: 0 0 auto; padding: 7px 14px; border-radius: 999px; border: 1px solid var(--sep); background: var(--card); color: var(--fg); font-size: 14px; cursor: pointer; white-space: nowrap; }
+  .chip.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+  .toolbar { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; flex-wrap: wrap; }
+  .toolbar .grow { flex: 1; }
+  .mini { font-size: 13px; color: var(--fg2); display: flex; align-items: center; gap: 6px; cursor: pointer; }
+  .btn { border: 1px solid var(--sep); background: var(--card); color: var(--fg); border-radius: 9px; padding: 7px 12px; font-size: 13px; cursor: pointer; }
+  .btn:active { opacity: .6; }
+
+  .settings { border: 1px solid var(--sep); border-radius: 10px; padding: 10px; margin-bottom: 8px; background: var(--card); }
+  .settings input { width: 100%; padding: 8px 10px; border: 1px solid var(--sep); border-radius: 8px; background: var(--bg); color: var(--fg); font-size: 14px; }
+  .settings p { font-size: 12px; color: var(--fg2); margin: 8px 0 0; }
+
+  .card { background: var(--card); border: 1px solid var(--sep); border-radius: 14px; padding: 14px; margin-bottom: 12px; box-shadow: 0 1px 4px rgba(0,0,0,.05); }
+  .card .top { display: flex; gap: 12px; align-items: flex-start; }
+  .avatar { width: 42px; height: 42px; border-radius: 50%; flex: 0 0 auto; background: var(--bg); }
+  .repo-name { font-size: 16px; font-weight: 700; line-height: 1.25; word-break: break-all; }
+  .owner { font-size: 12px; color: var(--fg2); margin-top: 2px; }
+  .desc { font-size: 14px; color: var(--fg); margin: 10px 0 0; line-height: 1.45; }
+  .desc.translated { color: var(--fg); }
+  .badge { display: inline-block; font-size: 10px; background: var(--accent); color: #fff; border-radius: 4px; padding: 1px 5px; margin-left: 6px; vertical-align: middle; }
+  .meta { display: flex; gap: 16px; margin-top: 10px; font-size: 13px; color: var(--fg2); align-items: center; flex-wrap: wrap; }
+  .meta .lang { display: flex; align-items: center; gap: 5px; }
+  .dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+  .star { color: var(--star); }
+  .transbtn { margin-top: 10px; font-size: 12px; color: var(--accent); border: 1px solid var(--accent); border-radius: 8px; padding: 4px 10px; background: transparent; cursor: pointer; }
+
+  .status { text-align: center; color: var(--fg2); font-size: 14px; padding: 20px; }
+  .status.err { color: #ff3b30; }
+  .sentinel { height: 1px; }
+
+  /* modal */
+  .overlay { position: fixed; inset: 0; background: var(--bg); z-index: 20; overflow-y: auto; display: none; padding: 0 12px calc(30px + env(safe-area-inset-bottom)); }
+  .overlay.open { display: block; }
+  .modal-head { position: sticky; top: 0; background: var(--bg); padding: 12px 0; display: flex; align-items: center; gap: 10px; z-index: 2; }
+  .modal-head .back { font-size: 16px; color: var(--accent); cursor: pointer; background: none; border: none; padding: 4px 0; }
+  .modal-head .mt { font-size: 17px; font-weight: 700; }
+  .dcard { background: var(--card); border: 1px solid var(--sep); border-radius: 14px; padding: 16px; margin-top: 8px; }
+  .dcard .dtop { display: flex; gap: 14px; align-items: center; }
+  .dcard .davatar { width: 56px; height: 56px; border-radius: 50%; }
+  .dcard .dfull { font-size: 18px; font-weight: 700; word-break: break-all; }
+  .dcard .downer { font-size: 13px; color: var(--fg2); margin-top: 3px; }
+  .ddesc { font-size: 15px; margin-top: 12px; line-height: 1.5; }
+  .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 14px; }
+  .stat { background: var(--card); border: 1px solid var(--sep); border-radius: 12px; padding: 12px 4px; text-align: center; }
+  .stat .v { font-size: 17px; font-weight: 700; }
+  .stat .l { font-size: 12px; color: var(--fg2); margin-top: 3px; }
+  .rows { background: var(--card); border: 1px solid var(--sep); border-radius: 14px; margin-top: 14px; overflow: hidden; }
+  .row { display: flex; gap: 12px; padding: 11px 16px; border-bottom: 1px solid var(--sep); font-size: 14px; }
+  .row:last-child { border-bottom: none; }
+  .row .k { color: var(--fg2); width: 76px; flex: 0 0 auto; }
+  .row .val { flex: 1; word-break: break-all; }
+  .row .val.link { color: var(--accent); }
+  .openbtn { display: block; width: 100%; text-align: center; margin-top: 16px; padding: 12px; background: var(--accent); color: #fff; border-radius: 12px; text-decoration: none; font-weight: 600; }
+  .spinner { display: inline-block; width: 18px; height: 18px; border: 2px solid var(--fg2); border-top-color: transparent; border-radius: 50%; animation: spin .8s linear infinite; vertical-align: middle; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <h1 class="title">GitHub 高星项目</h1>
+    <p class="subtitle">发现并浏览 GitHub 上的高星开源项目</p>
+
+    <div class="seg" id="seg">
+      <button data-rank="hot" class="active">高星榜</button>
+      <button data-rank="trending">升星最快</button>
+    </div>
+
+    <input class="search" id="search" type="search" placeholder="搜索仓库，按热度排序" />
+
+    <div class="chips" id="chips"></div>
+
+    <div class="toolbar">
+      <span class="grow"></span>
+      <label class="mini"><input type="checkbox" id="translateToggle" /> 翻译描述</label>
+      <button class="btn" id="refreshBtn">刷新</button>
+      <button class="btn" id="settingsBtn">令牌</button>
+    </div>
+
+    <div class="settings" id="settings" style="display:none">
+      <input id="tokenInput" type="password" placeholder="粘贴 GitHub Token（可选，提升额度）" />
+      <p>未登录每小时仅 60 次请求；填入具备 public_repo 只读权限的 Token 可提升到 5000 次。仅保存在本机浏览器。</p>
+    </div>
+  </header>
+
+  <div id="list"></div>
+  <div class="sentinel" id="sentinel"></div>
+  <div class="status" id="status"></div>
+</div>
+
+<div class="overlay" id="overlay">
+  <div class="modal-head">
+    <button class="back" id="backBtn">← 返回</button>
+    <span class="mt">项目详情</span>
+  </div>
+  <div id="detail"></div>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  var API = "https://api.github.com/search/repositories";
+  var TR = "https://api.mymemory.translated.net/get";
+  var PER_PAGE = 30;
+
+  var LANGS = [null, "Swift", "Python", "JavaScript", "TypeScript", "Go", "Rust",
+    "Java", "C++", "C#", "Kotlin", "Ruby", "PHP", "Vue", "Dart"];
+
+  var LANG_COLORS = {
+    "Swift": "#F05138", "Python": "#3572A5", "JavaScript": "#F1E05A",
+    "TypeScript": "#3178C6", "Go": "#00ADD8", "Rust": "#DEA584",
+    "Java": "#B07219", "C++": "#F34B7D", "C#": "#178600", "C": "#555555",
+    "Ruby": "#701516", "Kotlin": "#A97BFF", "PHP": "#4F5D95",
+    "Shell": "#89E051", "Dart": "#00B4AB", "Vue": "#41B883", "HTML": "#E34C26"
+  };
+
+  var state = {
+    ranking: "hot",
+    lang: null,
+    q: "",
+    page: 1,
+    hasMore: true,
+    loading: false,
+    error: null,
+    repos: [],
+    token: localStorage.getItem("gh_token") || "",
+    translate: localStorage.getItem("gh_translate") === "1",
+    cache: JSON.parse(localStorage.getItem("gh_tr_cache") || "{}")
+  };
+
+  var $ = function (id) { return document.getElementById(id); };
+
+  function daysAgo(n) {
+    var d = new Date();
+    d.setDate(d.getDate() - n);
+    return d.toISOString().slice(0, 10);
+  }
+
+  function fmtCount(n) {
+    if (n >= 1000) return (n / 1000).toFixed(1) + "k";
+    return String(n);
+  }
+
+  function fmtDate(iso) {
+    if (!iso) return "";
+    var d = new Date(iso);
+    if (isNaN(d)) return iso;
+    var m = ("0" + (d.getMonth() + 1)).slice(-2);
+    var day = ("0" + d.getDate()).slice(-2);
+    return d.getFullYear() + "-" + m + "-" + day;
+  }
+
+  function buildQuery() {
+    var parts = [];
+    var kw = state.q.trim();
+    if (kw) parts.push(kw);
+    else if (state.ranking === "trending") parts.push("created:>=" + daysAgo(30));
+    else parts.push("stars:>1");
+    if (state.lang) parts.push("language:" + state.lang);
+    return parts.join(" ");
+  }
+
+  function setStatus(msg, isErr) {
+    var s = $("status");
+    if (!msg) { s.textContent = ""; s.className = "status"; return; }
+    s.className = "status" + (isErr ? " err" : "");
+    s.innerHTML = isErr ? msg : '<span class="spinner"></span> ' + msg;
+  }
+
+  function headers() {
+    var h = { "Accept": "application/vnd.github+json" };
+    if (state.token) h["Authorization"] = "Bearer " + state.token;
+    return h;
+  }
+
+  function fetchRepos(reset) {
+    if (state.loading) return;
+    if (reset) { state.page = 1; state.repos = []; state.hasMore = true; state.error = null; }
+    if (!state.hasMore) return;
+    state.loading = true;
+    if (state.repos.length === 0) setStatus("加载中…", false);
+    fetch(API + "?q=" + encodeURIComponent(buildQuery()) +
+      "&sort=stars&order=desc&page=" + state.page + "&per_page=" + PER_PAGE, { headers: headers() })
+      .then(function (r) {
+        if (r.status === 403 || r.status === 429) throw new Error("rate");
+        if (!r.ok) throw new Error("http" + r.status);
+        return r.json();
+      })
+      .then(function (data) {
+        var items = data.items || [];
+        state.repos = reset ? items : state.repos.concat(items);
+        state.hasMore = items.length === PER_PAGE;
+        state.page++;
+      })
+      .catch(function (e) {
+        state.error = e.message;
+      })
+      .then(function () {
+        state.loading = false;
+        render();
+        if (state.translate) applyTranslation();
+      });
+  }
+
+  function translate(text, cb) {
+    if (!text) { cb(text); return; }
+    if (state.cache[text] !== undefined) { cb(state.cache[text]); return; }
+    cb(null); // 标记翻译中
+    fetch(TR + "?q=" + encodeURIComponent(text) + "&langpair=en|zh-CN")
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        var t = d && d.responseData && d.responseData.translatedText;
+        if (!t || /MYMEMORY WARNING/i.test(t)) t = text;
+        state.cache[text] = t;
+        try { localStorage.setItem("gh_tr_cache", JSON.stringify(state.cache)); } catch (e) {}
+        cb(t);
+      })
+      .catch(function () { state.cache[text] = text; cb(text); });
+  }
+
+  function applyTranslation() {
+    var nodes = document.querySelectorAll("[data-desc]");
+    var i = 0;
+    (function next() {
+      if (i >= nodes.length) return;
+      var el = nodes[i++];
+      var orig = el.getAttribute("data-desc");
+      translate(orig, function (t) {
+        if (t === null) {
+          el.textContent = "（翻译中…）";
+        } else if (t && t !== orig) {
+          el.innerHTML = escapeHtml(t) + '<span class="badge">译</span>';
+        }
+        setTimeout(next, 250);
+      });
+    })();
+  }
+
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+    });
+  }
+
+  function cardHTML(repo) {
+    var lang = repo.language || "";
+    var color = LANG_COLORS[lang] || "#8E8E93";
+    var desc = repo.description || "";
+    var html =
+      '<div class="card" data-id="' + repo.id + '">' +
+        '<div class="top">' +
+          '<img class="avatar" src="' + escapeHtml(repo.owner.avatar_url) + '" alt="" loading="lazy" />' +
+          '<div style="flex:1;min-width:0">' +
+            '<div class="repo-name">' + escapeHtml(repo.full_name) + '</div>' +
+            '<div class="owner">由 ' + escapeHtml(repo.owner.login) + ' 创建</div>' +
+          '</div>' +
+        '</div>';
+    if (desc) {
+      html += '<div class="desc" data-desc="' + escapeHtml(desc) + '">' + escapeHtml(desc) + '</div>';
+      html += '<button class="transbtn" data-translate="' + repo.id + '">翻译此描述</button>';
+    }
+    html += '<div class="meta">' +
+        (lang ? '<span class="lang"><span class="dot" style="background:' + color + '"></span>' + escapeHtml(lang) + '</span>' : '') +
+        '<span class="star">★ ' + fmtCount(repo.stargazers_count) + '</span>' +
+        '<span>⑂ ' + fmtCount(repo.forks_count) + '</span>' +
+      '</div>';
+    html += '</div>';
+    return html;
+  }
+
+  function render() {
+    var list = $("list");
+    if (state.repos.length === 0 && !state.loading) {
+      if (state.error === "rate") {
+        setStatus("请求过于频繁（已被限流）。可在「令牌」中填入 Token 提升到 5000 次/小时，或稍后重试。", true);
+      } else if (state.error) {
+        setStatus("加载失败：" + state.error + "。请检查网络后点「刷新」。", true);
+      } else {
+        setStatus("暂无数据", false);
+      }
+      list.innerHTML = "";
+      return;
+    }
+    setStatus(state.loading ? "加载中…" : "", false);
+    list.innerHTML = state.repos.map(cardHTML).join("");
+  }
+
+  function openDetail(repo) {
+    var lic = (repo.license && (repo.license.spdx_id && repo.license.spdx_id !== "NOASSERTION" ? repo.license.spdx_id : repo.license.name)) || "";
+    var lang = repo.language || "";
+    var color = LANG_COLORS[lang] || "#8E8E93";
+    var topics = (repo.topics && repo.topics.length) ? repo.topics.join("、") : "";
+    var d = '<div class="dcard">' +
+        '<div class="dtop">' +
+          '<img class="davatar" src="' + escapeHtml(repo.owner.avatar_url) + '" alt="" />' +
+          '<div style="min-width:0">' +
+            '<div class="dfull">' + escapeHtml(repo.full_name) + '</div>' +
+            '<div class="downer">由 ' + escapeHtml(repo.owner.login) + ' 创建</div>' +
+          '</div>' +
+        '</div>';
+    if (repo.description) {
+      d += '<div class="ddesc" data-desc="' + escapeHtml(repo.description) + '">' + escapeHtml(repo.description) + '</div>';
+    }
+    d += '<div class="grid">' +
+        '<div class="stat"><div class="v">' + fmtCount(repo.stargazers_count) + '</div><div class="l">星标</div></div>' +
+        '<div class="stat"><div class="v">' + fmtCount(repo.forks_count) + '</div><div class="l">派生</div></div>' +
+        '<div class="stat"><div class="v">' + repo.watchers_count + '</div><div class="l">关注</div></div>' +
+        '<div class="stat"><div class="v">' + (repo.open_issues_count || 0) + '</div><div class="l">开放 Issue</div></div>' +
+      '</div>';
+    d += '<div class="rows">';
+    d += row("项目全称", escapeHtml(repo.full_name));
+    d += row("拥有者", escapeHtml(repo.owner.login));
+    if (lang) d += row("主要语言", '<span class="dot" style="background:' + color + ';display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:5px"></span>' + escapeHtml(lang));
+    if (lic) d += row("开源协议", escapeHtml(lic));
+    if (repo.created_at) d += row("创建时间", fmtDate(repo.created_at));
+    if (repo.updated_at) d += row("最近更新", fmtDate(repo.updated_at));
+    if (repo.size != null) d += row("仓库大小", repo.size + " KB");
+    if (topics) d += row("主题标签", escapeHtml(topics));
+    if (repo.homepage) d += row("项目主页", escapeHtml(repo.homepage));
+    d += row("GitHub 地址", '<a class="link" href="' + escapeHtml(repo.html_url) + '" target="_blank" rel="noopener">' + escapeHtml(repo.html_url) + '</a>');
+    d += '</div>';
+    d += '<a class="openbtn" href="' + escapeHtml(repo.html_url) + '" target="_blank" rel="noopener">在 GitHub 中打开</a>';
+    d += '</div>';
+    $("detail").innerHTML = d;
+
+    if (state.translate) {
+      var el = $("detail").querySelector("[data-desc]");
+      if (el) translate(el.getAttribute("data-desc"), function (t) {
+        if (t && t !== el.getAttribute("data-desc")) el.innerHTML = escapeHtml(t) + '<span class="badge">译</span>';
+      });
+    }
+    $("overlay").classList.add("open");
+    $("overlay").scrollTop = 0;
+  }
+
+  function row(k, v) {
+    return '<div class="row"><span class="k">' + k + '</span><span class="val">' + v + '</span></div>';
+  }
+
+  // ---- 事件绑定 ----
+  function bind() {
+    // 榜单切换
+    $("seg").addEventListener("click", function (e) {
+      var b = e.target.closest("button"); if (!b) return;
+      state.ranking = b.getAttribute("data-rank");
+      Array.prototype.forEach.call(this.children, function (c) { c.classList.remove("active"); });
+      b.classList.add("active");
+      fetchRepos(true);
+    });
+
+    // 语言标签
+    var chips = $("chips");
+    LANGS.forEach(function (l) {
+      var b = document.createElement("button");
+      b.className = "chip" + (l === state.lang ? " active" : "");
+      b.textContent = l || "全部";
+      b.setAttribute("data-lang", l || "");
+      b.addEventListener("click", function () {
+        state.lang = l;
+        Array.prototype.forEach.call(chips.children, function (c) { c.classList.remove("active"); });
+        b.classList.add("active");
+        fetchRepos(true);
+      });
+      chips.appendChild(b);
+    });
+
+    // 搜索
+    var t;
+    $("search").addEventListener("input", function () {
+      clearTimeout(t);
+      t = setTimeout(function () { state.q = this.value; fetchRepos(true); }.bind(this), 400);
+    });
+
+    // 刷新
+    $("refreshBtn").addEventListener("click", function () { fetchRepos(true); });
+
+    // 设置/令牌
+    $("settingsBtn").addEventListener("click", function () {
+      var s = $("settings");
+      s.style.display = s.style.display === "none" ? "block" : "none";
+    });
+    $("tokenInput").value = state.token;
+    $("tokenInput").addEventListener("change", function () {
+      state.token = this.value.trim();
+      localStorage.setItem("gh_token", state.token);
+    });
+
+    // 翻译开关
+    var tg = $("translateToggle");
+    tg.checked = state.translate;
+    tg.addEventListener("change", function () {
+      state.translate = this.checked;
+      localStorage.setItem("gh_translate", this.checked ? "1" : "0");
+      if (this.checked) applyTranslation(); else render();
+    });
+
+    // 列表点击：打开详情 / 翻译单条
+    $("list").addEventListener("click", function (e) {
+      var tb = e.target.closest("[data-translate]");
+      if (tb) {
+        e.stopPropagation();
+        var id = tb.getAttribute("data-translate");
+        var repo = state.repos.filter(function (r) { return String(r.id) === id; })[0];
+        var descEl = tb.previousElementSibling;
+        if (repo && descEl) {
+          tb.textContent = "翻译中…";
+          translate(repo.description, function (t) {
+            if (t && t !== repo.description) { descEl.innerHTML = escapeHtml(t) + '<span class="badge">译</span>'; tb.textContent = "已翻译"; }
+            else { tb.textContent = "翻译此描述"; }
+          });
+        }
+        return;
+      }
+      var card = e.target.closest(".card");
+      if (card) {
+        var rid = card.getAttribute("data-id");
+        var repo2 = state.repos.filter(function (r) { return String(r.id) === rid; })[0];
+        if (repo2) openDetail(repo2);
+      }
+    });
+
+    // 返回
+    $("backBtn").addEventListener("click", function () { $("overlay").classList.remove("open"); });
+
+    // 无限滚动
+    var io = new IntersectionObserver(function (entries) {
+      if (entries[0].isIntersecting) fetchRepos(false);
+    }, { rootMargin: "400px" });
+    io.observe($("sentinel"));
+  }
+
+  bind();
+  fetchRepos(true);
+})();
+</script>
+</body>
+</html>

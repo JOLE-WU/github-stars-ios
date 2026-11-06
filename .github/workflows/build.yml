@@ -3,6 +3,11 @@ name: Build iOS IPA
 on:
   push:
     branches: [ main ]
+    # 只有 Swift / Xcode 工程文件变动才触发 IPA 构建；
+    # 仅修改网页（index.html 等）不会触发，避免浪费 macOS 构建额度。
+    paths:
+      - 'GitHubStars/**'
+      - 'GitHubStars.xcodeproj/**'
   workflow_dispatch:
 
 jobs:
