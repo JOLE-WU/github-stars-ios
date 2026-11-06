@@ -46,9 +46,10 @@ GitHubStars/
     ├── GitHubStarsApp.swift      # @main 入口
     ├── Repo.swift                # 数据模型（Codable）
     ├── GitHubService.swift       # GitHub API 服务层（async/await）
-    ├── RepoListView.swift        # 主列表：搜索 / 筛选 / 刷新 / 分页
-    ├── RepoRowView.swift         # 列表行
-    ├── RepoDetailView.swift      # 详情页
+    ├── RepoListView.swift        # 主列表：榜单切换 / 横向分类 / 搜索 / 刷新 / 分页
+    ├── RepoRowView.swift         # 卡片行
+    ├── RepoDetailView.swift      # 详情页（中文明细列表）
+    ├── Appearance.swift          # 语言主题色与颜色辅助
     ├── SettingsView.swift        # Token 设置页
     ├── Assets.xcassets/          # 图标与配色
     └── Info.plist
