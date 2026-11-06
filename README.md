@@ -17,7 +17,7 @@
 | 关键字搜索 | 顶部搜索框按关键字搜索，结果仍以热度（Star）排序 |
 | 下拉刷新 / 无限滚动 | 刷新按钮 + 滚动到底部自动分页加载 |
 | 项目详情 | 弹层明细列表，逐项列出全称 / 拥有者 / 语言 / 星标 / 派生 / 关注 / 开放 Issue / 创建与更新时间 / 开源协议 / 主题标签 / 主页，并一键跳转 GitHub |
-| 描述翻译 | 开启「翻译描述」开关后可把仓库英文描述翻译成中文（基于免费 MyMemory 接口，失败回退原文）；也支持单条「翻译此描述」 |
+| 描述翻译 | 开启「翻译描述」开关后自动把仓库英文描述翻译成中文；详情页与每张卡片均可「看原文 / 看译文」切换。内置 **Google + MyMemory** 两个免 key 公共端点自动兜底；并支持在「令牌」面板填入**自建 Cloudflare Workers AI 翻译端点**，在国内稳定翻译、不受公共端点限流影响 |
 | 访问令牌 | 网页内「令牌」入口可填写 GitHub Token，将速率限制从 60 次/小时提升到 5000 次/小时（仅存于本机浏览器） |
 
 ## 运行方式
@@ -49,6 +49,9 @@ GitHubStars/
     ├── GitHubStarsApp.swift      # @main 入口
     ├── WebShellView.swift        # WKWebView 网页壳（加载上面的 index.html）
     └── （其余 SwiftUI 视图为历史实现，已不再作为主界面使用）
+└── cloudflare/
+    ├── worker.js                  # 自建翻译服务（Cloudflare Workers AI）
+    └── wrangler.toml              # Worker 部署配置
 ```
 
 > 注意：App 的实际功能 100% 在 `index.html` 里。改界面/功能请改 `index.html`，不要改 Swift 代码（除非要改壳本身）。
@@ -81,3 +84,27 @@ GitHubStars/
 2. 网页壳加载的地址为 `https://JOLE-WU.github.io/github-stars-ios/`，需先在仓库 Settings → Pages 启用（分支 `main`、目录 `/`）。
 
 > 若后续升级为付费开发者账号（$99/年），可在 Actions 中配置证书 / 描述文件 Secrets，把工作流改为正式签名并走 TestFlight / AdHoc 分发。
+
+## 自建翻译服务（国内稳定翻译，可选）
+
+公共翻译端点（Google、MyMemory）在国内可能被墙或每日限流。仓库内置了基于 **Cloudflare Workers AI**（Meta 开源模型 `@cf/meta/m2m100-1.2b`）的翻译 Worker，免费、国内可直连、设备端无需下载模型。
+
+### 部署步骤（约 3 分钟，免费）
+
+1. 注册免费 Cloudflare 账号：https://dash.cloudflare.com/sign-up
+2. 安装并登录 Wrangler：`npm install -g wrangler && wrangler login`
+3. 部署本仓库 `cloudflare/` 目录下的 Worker：
+   ```bash
+   cd cloudflare
+   wrangler deploy
+   ```
+4. 终端会输出你的端点地址，形如 `https://gh-stars-translate.<你的子域>.workers.dev`
+5. 在 App 的「令牌」面板里，把该地址填到 **Cloudflare 翻译端点** 一栏并保存。
+
+之后 App 会优先使用你自己的翻译服务，国内稳定可用，且不受公共端点限流影响。
+
+### 原理与额度
+
+- Worker 代码：`cloudflare/worker.js`，接收 `POST {text}`，返回 `{translatedText}`，并带 CORS 头供网页调用。
+- 免费额度 **10,000 神经元/天**（约数百条翻译），超出后自动回退到 Google / MyMemory。
+- 翻译失败/超时会回退显示原文，不会让 App 崩溃。
