@@ -1,0 +1,7 @@
+name = "gh-stars-translate"
+main = "worker.js"
+compatibility_date = "2024-09-23"
+
+# 启用 Workers AI 绑定（免费额度：10,000 神经元/天）
+[ai]
+binding = "AI"
