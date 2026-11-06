@@ -1,11 +1,19 @@
 import SwiftUI
 
-/// 主界面：以列表形式展示 GitHub 上的高星项目。
+/// 榜单类型：高星榜（按 star 降序）或升星最快（近 30 天创建、按 star 降序）。
+enum RankingType: String, CaseIterable, Identifiable {
+    case hot = "高星榜"
+    case trending = "升星最快"
+    var id: String { rawValue }
+}
+
+/// 主界面：以卡片形式展示 GitHub 上的高星项目，并提供榜单切换与横向语言分类。
 ///
 /// 功能：
+/// - 两个榜单：高星榜（全站 star 最高）/ 升星最快（近 30 天创建且 star 最高）
+/// - 顶部横向滚动的语言分类标签，点击即时筛选
 /// - 默认展示全站 star 数最高的仓库
 /// - 顶部搜索框按关键字搜索（仍按 star 排序）
-/// - 右上角按语言筛选
 /// - 下拉刷新、滚动到底部自动分页加载
 /// - 右上角进入「设置」配置访问令牌
 struct RepoListView: View {
@@ -16,48 +24,87 @@ struct RepoListView: View {
     @State private var page = 1
     @State private var hasMore = true
     @State private var languageFilter: String?
+    @State private var rankingType: RankingType = .hot
     @State private var showSettings = false
 
     /// 可筛选的语言列表；nil 表示「全部」。
     private let languages: [String?] = [
         nil, "Swift", "Python", "JavaScript", "TypeScript",
-        "Go", "Rust", "Java", "C++", "Ruby", "Kotlin"
+        "Go", "Rust", "Java", "C++", "C#", "Kotlin", "Ruby", "PHP", "Vue", "Dart"
     ]
 
     private let perPage = 30
 
     var body: some View {
         NavigationStack {
-            content
-                .navigationTitle("GitHub 高星项目")
-                .searchable(text: $searchText, prompt: "搜索仓库，按热度排序")
-                .onSubmit(of: .search) { Task { await load(refresh: true) } }
-                .refreshable { await load(refresh: true) }
-                .task { await load(refresh: true) }
-                .toolbar {
-                    ToolbarItem(placement: .topBarTrailing) {
-                        Menu {
-                            ForEach(languages, id: \.self) { lang in
-                                Button(lang ?? "全部语言") {
-                                    languageFilter = lang
-                                    Task { await load(refresh: true) }
-                                }
-                            }
-                        } label: {
-                            Image(systemName: "line.3.horizontal.decrease.circle")
-                        }
-                    }
-                    ToolbarItem(placement: .topBarTrailing) {
-                        Button {
-                            showSettings = true
-                        } label: {
-                            Image(systemName: "gearshape")
-                        }
+            VStack(spacing: 0) {
+                // 榜单切换
+                Picker("榜单", selection: $rankingType) {
+                    ForEach(RankingType.allCases) { type in
+                        Text(type.rawValue).tag(type)
                     }
                 }
-                .sheet(isPresented: $showSettings) {
-                    SettingsView()
+                .pickerStyle(.segmented)
+                .padding(.horizontal)
+                .padding(.top, 10)
+                .padding(.bottom, 6)
+                .onChange(of: rankingType) { _ in Task { await load(refresh: true) } }
+
+                // 横向语言分类
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) {
+                        ForEach(languages, id: \.self) { lang in
+                            languageChip(lang)
+                        }
+                    }
+                    .padding(.horizontal)
+                    .padding(.bottom, 10)
                 }
+
+                content
+            }
+            .navigationTitle("GitHub 高星项目")
+            .searchable(text: $searchText, prompt: "搜索仓库，按热度排序")
+            .onSubmit(of: .search) { Task { await load(refresh: true) } }
+            .refreshable { await load(refresh: true) }
+            .task { await load(refresh: true) }
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        showSettings = true
+                    } label: {
+                        Image(systemName: "gearshape")
+                    }
+                }
+            }
+            .sheet(isPresented: $showSettings) {
+                SettingsView()
+            }
+        }
+    }
+
+    /// 语言筛选标签。选中态高亮，未选中为灰色描边。
+    private func languageChip(_ lang: String?) -> some View {
+        let isSelected = languageFilter == lang
+        let title = lang ?? "全部"
+        return Button {
+            languageFilter = lang
+            Task { await load(refresh: true) }
+        } label: {
+            Text(title)
+                .font(.subheadline)
+                .fontWeight(isSelected ? .semibold : .regular)
+                .foregroundStyle(isSelected ? Color.white : Color.primary)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 7)
+                .background(
+                    Capsule()
+                        .fill(isSelected ? Color.accentColor : Color(.secondarySystemBackground))
+                )
+                .overlay(
+                    Capsule()
+                        .stroke(isSelected ? Color.clear : Color(.separator), lineWidth: 0.5)
+                )
         }
     }
 
@@ -65,6 +112,7 @@ struct RepoListView: View {
     private var content: some View {
         if isLoading && repos.isEmpty {
             ProgressView("加载中…")
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else if let errorMessage = errorMessage, repos.isEmpty {
             errorView(message: errorMessage)
         } else {
@@ -72,24 +120,28 @@ struct RepoListView: View {
         }
     }
 
+    /// 卡片流：ScrollView + LazyVStack，每行是一个 RepoRowView 卡片。
     private var list: some View {
-        List(repos) { repo in
-            NavigationLink {
-                RepoDetailView(repo: repo)
-            } label: {
-                RepoRowView(repo: repo)
-            }
-            .onAppear {
-                if repo == repos.last {
-                    Task { await loadMore() }
+        ScrollView {
+            LazyVStack(spacing: 12) {
+                ForEach(repos) { repo in
+                    NavigationLink {
+                        RepoDetailView(repo: repo)
+                    } label: {
+                        RepoRowView(repo: repo)
+                    }
+                    .buttonStyle(.plain)
+                    .onAppear {
+                        if repo == repos.last {
+                            Task { await loadMore() }
+                        }
+                    }
+                }
+                if isLoading && !repos.isEmpty {
+                    ProgressView().padding()
                 }
             }
-        }
-        .listStyle(.plain)
-        .overlay(alignment: .bottom) {
-            if isLoading && !repos.isEmpty {
-                ProgressView().padding(8).background(.ultraThinMaterial, in: Capsule())
-            }
+            .padding()
         }
     }
 
@@ -105,16 +157,30 @@ struct RepoListView: View {
                 .buttonStyle(.borderedProminent)
         }
         .padding()
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
-    // MARK: - 数据加载
+    // MARK: - 查询构建与数据加载
+
+    /// 近 30 天日期，用于「升星最快」板块（created:>=日期）。
+    private var thirtyDaysAgo: String {
+        let fmt = DateFormatter()
+        fmt.dateFormat = "yyyy-MM-dd"
+        let date = Calendar.current.date(byAdding: .day, value: -30, to: Date()) ?? Date()
+        return fmt.string(from: date)
+    }
 
     private func buildQuery() -> String {
         var parts: [String] = []
-        if searchText.trimmingCharacters(in: .whitespaces).isEmpty {
-            parts.append("stars:>1")
+        let keyword = searchText.trimmingCharacters(in: .whitespaces)
+        if keyword.isEmpty {
+            if rankingType == .trending {
+                parts.append("created:>=\(thirtyDaysAgo)")
+            } else {
+                parts.append("stars:>1")
+            }
         } else {
-            parts.append(searchText)
+            parts.append(keyword)
         }
         if let lang = languageFilter {
             parts.append("language:\(lang)")

@@ -10,7 +10,7 @@ struct SettingsView: View {
         NavigationStack {
             Form {
                 Section {
-                    SecureField("Personal Access Token", text: $text)
+                    SecureField("在此粘贴访问令牌", text: $text)
                         .textContentType(.password)
                         .autocapitalization(.none)
                         .disableAutocorrection(true)
