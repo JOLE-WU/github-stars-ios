@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 import WebKit
 
 /// 网页壳的加载状态模型：用于驱动原生层的加载指示器与失败重试界面。
@@ -56,8 +57,18 @@ struct WebView: UIViewRepresentable {
 
     func makeUIView(context: Context) -> WKWebView {
         let config = WKWebViewConfiguration()
+        // 向网页注入能力标记：网页端据此知道「window.open 会被原生交给系统浏览器」，
+        // 从而不再降级为应用内打开。注入时机必须早于页面脚本执行。
+        let capability = WKUserScript(
+            source: "window.sgitCanOpenExternal = true;",
+            injectionTime: .atDocumentStart,
+            forMainFrameOnly: true
+        )
+        config.userContentController.addUserScript(capability)
+
         let webView = WKWebView(frame: .zero, configuration: config)
         webView.navigationDelegate = context.coordinator
+        webView.uiDelegate = context.coordinator
         webView.allowsBackForwardNavigationGestures = false
         webView.scrollView.contentInsetAdjustmentBehavior = .never
         model.isLoading = true
@@ -72,7 +83,7 @@ struct WebView: UIViewRepresentable {
         Coordinator(model: model)
     }
 
-    final class Coordinator: NSObject, WKNavigationDelegate {
+    final class Coordinator: NSObject, WKNavigationDelegate, WKUIDelegate {
         let model: WebShellModel
 
         init(model: WebShellModel) {
@@ -98,6 +109,24 @@ struct WebView: UIViewRepresentable {
             model.isLoading = false
             model.didFail = true
             model.failMessage = "网页加载失败：\(error.localizedDescription)\n请检查网络后重试。"
+        }
+
+        // 网页调用 window.open(url, "_blank") 或点击 target="_blank" 时，
+        // WKWebView 默认会静默丢弃请求。这里把 http/https 链接交给系统默认浏览器
+        // （Safari 或用户设置的默认浏览器），SGit 页面本身保持不动，随时可切回。
+        func webView(_ webView: WKWebView,
+                     createWebViewWith configuration: WKWebViewConfiguration,
+                     for navigationAction: WKNavigationAction,
+                     windowFeatures: WKWindowFeatures) -> WKWebView? {
+            guard let url = navigationAction.request.url,
+                  let scheme = url.scheme?.lowercased(),
+                  scheme == "http" || scheme == "https" else {
+                return nil
+            }
+            DispatchQueue.main.async {
+                UIApplication.shared.open(url, options: [:], completionHandler: nil)
+            }
+            return nil
         }
     }
 }
