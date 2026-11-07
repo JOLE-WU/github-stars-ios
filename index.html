@@ -2,6 +2,7 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8" />
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no" />
 <title>SGit</title>
 <style>
@@ -146,6 +147,27 @@
   .field-label { display: block; font-size: 13px; color: var(--fg2); margin: 14px 0 6px; }
   .settings-input { width: 100%; padding: 10px 11px; border: 1px solid var(--sep); border-radius: 10px; background: var(--bg); color: var(--fg); font-size: 14px; }
   .switch { display: flex; align-items: center; gap: 8px; font-size: 14px; margin-top: 16px; cursor: pointer; }
+
+  /* 应用内浏览器：外链在此层打开，SGit 主页面不被导航走，随时可返回 */
+  .browser { position: fixed; inset: 0; z-index: 60; background: var(--bg); display: none; flex-direction: column; }
+  .browser.open { display: flex; }
+  .browser-head {
+    flex: 0 0 auto; display: flex; align-items: center; gap: 8px;
+    padding: calc(10px + env(safe-area-inset-top)) 12px 10px;
+    background: var(--card); border-bottom: 1px solid var(--sep);
+  }
+  .browser-head .bback { flex: 0 0 auto; font-size: 15px; font-weight: 600; color: var(--accent); background: none; border: none; cursor: pointer; padding: 6px 0; }
+  .browser-head .bt { flex: 1 1 auto; min-width: 0; font-size: 13px; color: var(--fg2); text-align: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .browser-head .bicon { flex: 0 0 32px; height: 30px; border: 1px solid var(--sep); background: var(--bg); color: var(--fg); border-radius: 8px; font-size: 15px; cursor: pointer; padding: 0; }
+  .browser-tip {
+    flex: 0 0 auto; display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+    padding: 8px 12px; background: var(--card); border-bottom: 1px solid var(--sep);
+    font-size: 12px; color: var(--fg2); line-height: 1.45;
+  }
+  .browser-tip .tiptext { flex: 1 1 100%; }
+  .browser-tip .btn { padding: 5px 10px; font-size: 12px; }
+  .browser-tip .copied { color: var(--accent); font-size: 12px; }
+  .browser-frame { flex: 1 1 auto; width: 100%; border: 0; background: #fff; }
 </style>
 </head>
 <body>
@@ -242,12 +264,30 @@
       <label class="switch"><input type="checkbox" id="translateToggle" /> 自动翻译描述为中文</label>
       <div style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap">
         <button class="btn" id="refreshBtn">刷新列表</button>
+        <button class="btn" id="reloadPageBtn">刷新网页（获取新版）</button>
         <button class="btn" id="testTrBtn" style="background:#444;color:#fff">测试翻译</button>
         <button class="btn" id="clearTrCacheBtn" style="background:#444;color:#fff">清除翻译缓存</button>
       </div>
       <pre id="trDiag" style="display:none;margin-top:10px;padding:10px;background:#111;color:#9fe6a0;border-radius:8px;font-size:12px;white-space:pre-wrap;word-break:break-all"></pre>
     </div>
   </div>
+</div>
+
+<!-- 应用内浏览器：外链在此打开，顶部固定「返回 SGit」 -->
+<div class="browser" id="browser">
+  <div class="browser-head">
+    <button class="bback" id="browserBack">← 返回 SGit</button>
+    <span class="bt" id="browserTitle">外部网页</span>
+    <button class="bicon" id="browserBackPage" aria-label="后退">‹</button>
+    <button class="bicon" id="browserReload" aria-label="刷新">⟳</button>
+  </div>
+  <div class="browser-tip">
+    <span class="tiptext">部分网站（如 github.com）不允许被内嵌，若下方显示空白，请点「复制地址」后到 Safari 粘贴打开。随时可用左上角返回 SGit。</span>
+    <button class="btn" id="browserSafari">用 Safari 打开</button>
+    <button class="btn" id="browserCopy">复制地址</button>
+    <span class="copied" id="browserCopied" style="display:none">已复制 ✓</span>
+  </div>
+  <iframe class="browser-frame" id="browserFrame" src="about:blank" referrerpolicy="no-referrer" sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-downloads"></iframe>
 </div>
 
 <script>
@@ -595,6 +635,59 @@
       navigator.clipboard.writeText(t).catch(function () { fallbackCopy(t); });
     } else { fallbackCopy(t); }
   }
+  // ---- 应用内浏览器 ----
+  // 不再用 window.location.href 把 WKWebView 导航到外部站点：
+  // App 内没有返回手势/按钮，一旦导航走就会卡在外部页面，只能重启 App。
+  var browserUrl = "";
+  function openInAppBrowser(url) {
+    var u = String(url || "");
+    if (!/^https?:\/\//i.test(u)) { copyText(u); return; }
+    browserUrl = u;
+    var host = u;
+    try { host = new URL(u).hostname; } catch (e) {}
+    $("browserTitle").textContent = host;
+    $("browserCopied").textContent = "已复制 ✓";
+    $("browserCopied").style.display = "none";
+    var f = $("browserFrame");
+    f.src = "about:blank";
+    $("browser").classList.add("open");
+    setTimeout(function () { if (browserUrl === u) f.src = u; }, 0);
+  }
+  function closeInAppBrowser() {
+    browserUrl = "";
+    $("browser").classList.remove("open");
+    $("browserFrame").src = "about:blank";
+  }
+  function bindInAppBrowser() {
+    $("browserBack").addEventListener("click", closeInAppBrowser);
+    $("browserBackPage").addEventListener("click", function () {
+      try { $("browserFrame").contentWindow.history.back(); } catch (e) {}
+    });
+    $("browserReload").addEventListener("click", function () {
+      if (!browserUrl) return;
+      var u = browserUrl;
+      $("browserFrame").src = "about:blank";
+      setTimeout(function () { if (browserUrl === u) $("browserFrame").src = u; }, 0);
+    });
+    $("browserCopy").addEventListener("click", function () {
+      if (!browserUrl) return;
+      copyText(browserUrl);
+      $("browserCopied").textContent = "已复制 ✓";
+      $("browserCopied").style.display = "inline";
+    });
+    $("browserSafari").addEventListener("click", function () {
+      if (!browserUrl) return;
+      // 真 Safari 可新开标签；App 的 WKWebView 不支持新窗口，降级为复制地址
+      var w = null;
+      try { w = window.open(browserUrl, "_blank", "noopener,noreferrer"); } catch (e) {}
+      if (!w) {
+        copyText(browserUrl);
+        $("browserCopied").textContent = "地址已复制，请切到 Safari 粘贴打开";
+        $("browserCopied").style.display = "inline";
+      }
+    });
+  }
+
   function showExternalConfirm(url) {
     var old = $("extConfirm");
     if (old && old.parentNode) old.parentNode.removeChild(old);
@@ -605,9 +698,9 @@
       '<div class="extcard">' +
         '<div class="t">打开外部链接</div>' +
         '<div class="u">' + escapeHtml(url) + '</div>' +
-        '<p class="h">在 App 内打开会离开当前页面，返回 SGit 需重启 App。若想用 Safari 打开，请点「复制地址」后粘贴到浏览器。</p>' +
+        '<p class="h">「应用内打开」会在带「返回 SGit」按钮的页面里显示链接，随时可回到列表。GitHub 等站点不允许内嵌，若显示空白请点「复制地址」后到 Safari 粘贴打开。</p>' +
         '<div class="bs">' +
-          '<button class="btn" id="extOpen">打开链接</button>' +
+          '<button class="btn" id="extOpen">应用内打开</button>' +
           '<button class="btn" id="extCopy">复制地址</button>' +
           '<button class="btn" id="extCancel">取消</button>' +
         '</div>' +
@@ -619,7 +712,10 @@
     $("extCancel").addEventListener("click", function () {
       if (box.parentNode) box.parentNode.removeChild(box);
     });
-    $("extOpen").addEventListener("click", function () { window.location.href = url; });
+    $("extOpen").addEventListener("click", function () {
+      if (box.parentNode) box.parentNode.removeChild(box);
+      openInAppBrowser(url);
+    });
     $("extCopy").addEventListener("click", function () {
       copyText(url);
       this.textContent = "已复制 ✓";
@@ -833,6 +929,11 @@
     });
 
     $("refreshBtn").addEventListener("click", function () { fetchRepos(true); window.scrollTo(0, 0); });
+    // 强制加载最新网页（绕过 WKWebView 缓存），无需重装 IPA
+    $("reloadPageBtn").addEventListener("click", function () {
+      location.replace(location.pathname + "?v=" + Date.now());
+    });
+    bindInAppBrowser();
 
     // 设置项（并入「我的」页）
     $("tokenInput").value = state.token;
