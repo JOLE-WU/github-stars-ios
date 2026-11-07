@@ -107,6 +107,17 @@
   .row .val { flex: 1; word-break: break-all; }
   .row .val.link { color: var(--accent); }
   .openbtn { display: block; width: 100%; text-align: center; margin-top: 16px; padding: 12px; background: var(--accent); color: #fff; border-radius: 12px; text-decoration: none; font-weight: 600; }
+  /* 外链：App 内 WKWebView 不支持 target=_blank，改为普通链接 + 复制 + 确认层 */
+  .extwrap { display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  a.link { color: var(--accent); text-decoration: underline; }
+  .copybtn { border: 1px solid var(--sep); background: transparent; color: var(--accent); border-radius: 6px; font-size: 12px; padding: 3px 8px; cursor: pointer; }
+  .extconfirm { position: fixed; inset: 0; background: rgba(0,0,0,.55); z-index: 50; display: flex; align-items: center; justify-content: center; padding: 20px; }
+  .extcard { background: var(--card); color: var(--fg); border-radius: 14px; padding: 20px; width: 100%; max-width: 420px; box-shadow: 0 10px 40px rgba(0,0,0,.3); }
+  .extcard .t { font-size: 17px; font-weight: 700; margin-bottom: 10px; }
+  .extcard .u { font-size: 13px; color: var(--accent); word-break: break-all; background: var(--bg); padding: 10px; border-radius: 8px; }
+  .extcard .h { font-size: 13px; color: var(--fg2); line-height: 1.55; margin: 12px 0 16px; }
+  .extcard .bs { display: flex; gap: 8px; flex-wrap: wrap; }
+  .extcard .bs .btn { flex: 1; min-width: 96px; padding: 10px; font-size: 14px; }
   .spinner { display: inline-block; width: 18px; height: 18px; border: 2px solid var(--fg2); border-top-color: transparent; border-radius: 50%; animation: spin .8s linear infinite; vertical-align: middle; }
   @keyframes spin { to { transform: rotate(360deg); } }
 
@@ -548,6 +559,91 @@
     return '<div class="row"><span class="k">' + k + '</span><span class="val">' + v + '</span></div>';
   }
 
+  // ---- 外部链接 ----
+  // App 的 WKWebView 只实现了导航代理、没有 WKUIDelegate，
+  // 新窗口(target=blank)链接会被静默丢弃（点击无反应）。
+  // 因此统一改为「不带 target 的普通链接 + 点击确认 + 复制地址兜底」。
+  function normalizeUrl(u) {
+    u = String(u || "").trim();
+    if (!u) return "";
+    if (/^(https?:|mailto:|tel:)/i.test(u)) return u;
+    return "https://" + u;
+  }
+  function inAppWebView() {
+    var ua = navigator.userAgent || "";
+    // iOS 系统 Safari 的 UA 含 "Safari"；WKWebView / App 内嵌浏览器不含
+    return /iPhone|iPad|iPod/i.test(ua) && !/Safari/i.test(ua);
+  }
+  function extLink(url, label) {
+    return '<span class="extwrap">' +
+             '<a class="link" data-ext href="' + escapeHtml(url) + '">' + label + '</a>' +
+             '<button class="copybtn" data-copy="' + escapeHtml(url) + '">复制</button>' +
+           '</span>';
+  }
+  function fallbackCopy(t) {
+    var ta = document.createElement("textarea");
+    ta.value = t;
+    ta.style.cssText = "position:fixed;left:-9999px;opacity:0";
+    document.body.appendChild(ta);
+    ta.select();
+    try { ta.setSelectionRange(0, t.length); } catch (e) {}
+    try { document.execCommand("copy"); } catch (e) {}
+    document.body.removeChild(ta);
+  }
+  function copyText(t) {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(t).catch(function () { fallbackCopy(t); });
+    } else { fallbackCopy(t); }
+  }
+  function showExternalConfirm(url) {
+    var old = $("extConfirm");
+    if (old && old.parentNode) old.parentNode.removeChild(old);
+    var box = document.createElement("div");
+    box.id = "extConfirm";
+    box.className = "extconfirm";
+    box.innerHTML =
+      '<div class="extcard">' +
+        '<div class="t">打开外部链接</div>' +
+        '<div class="u">' + escapeHtml(url) + '</div>' +
+        '<p class="h">在 App 内打开会离开当前页面，返回 SGit 需重启 App。若想用 Safari 打开，请点「复制地址」后粘贴到浏览器。</p>' +
+        '<div class="bs">' +
+          '<button class="btn" id="extOpen">打开链接</button>' +
+          '<button class="btn" id="extCopy">复制地址</button>' +
+          '<button class="btn" id="extCancel">取消</button>' +
+        '</div>' +
+      '</div>';
+    document.body.appendChild(box);
+    box.addEventListener("click", function (ev) {
+      if (ev.target === box && box.parentNode) box.parentNode.removeChild(box);
+    });
+    $("extCancel").addEventListener("click", function () {
+      if (box.parentNode) box.parentNode.removeChild(box);
+    });
+    $("extOpen").addEventListener("click", function () { window.location.href = url; });
+    $("extCopy").addEventListener("click", function () {
+      copyText(url);
+      this.textContent = "已复制 ✓";
+    });
+  }
+  document.addEventListener("click", function (e) {
+    var t = e.target;
+    var cp = t.closest ? t.closest("[data-copy]") : null;
+    if (cp) {
+      e.preventDefault(); e.stopPropagation();
+      copyText(cp.getAttribute("data-copy"));
+      cp.textContent = "已复制";
+      setTimeout(function () { cp.textContent = "复制"; }, 1500);
+      return;
+    }
+    var a = t.closest ? t.closest("a[data-ext]") : null;
+    if (!a) return;
+    var url = a.getAttribute("href");
+    if (!url) return;
+    e.preventDefault();
+    if (inAppWebView()) showExternalConfirm(url);
+    else window.open(url, "_blank", "noopener,noreferrer");
+  }, false);
+
   function openDetail(repo) {
     var lic = (repo.license && (repo.license.spdx_id && repo.license.spdx_id !== "NOASSERTION" ? repo.license.spdx_id : repo.license.name)) || "";
     var lang = repo.language || "";
@@ -583,11 +679,11 @@
     if (repo.updated_at) d += row("最近更新", fmtDate(repo.updated_at));
     if (repo.size != null) d += row("仓库大小", repo.size + " KB");
     if (topics) d += row("主题标签", escapeHtml(topics));
-    if (repo.homepage) d += row("项目主页", escapeHtml(repo.homepage));
-    d += row("GitHub 地址", '<a class="link" href="' + escapeHtml(repo.html_url || "") + '" target="_blank" rel="noopener">' + escapeHtml(repo.html_url || "") + '</a>');
+    if (repo.homepage) d += row("项目主页", extLink(normalizeUrl(repo.homepage), escapeHtml(repo.homepage)));
+    d += row("GitHub 地址", extLink(normalizeUrl(repo.html_url), escapeHtml(repo.html_url || "")));
     d += '</div>';
     d += '<button class="transbtn" id="dFavBtn" style="width:100%;margin-top:14px;padding:10px;font-size:14px"></button>';
-    d += '<a class="openbtn" href="' + escapeHtml(repo.html_url || "") + '" target="_blank" rel="noopener">在 GitHub 中打开</a>';
+    d += '<a class="openbtn" data-ext href="' + escapeHtml(normalizeUrl(repo.html_url)) + '">在 GitHub 中打开</a>';
     d += '</div>';
     $("detail").innerHTML = d;
 
