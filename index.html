@@ -283,7 +283,7 @@
   </div>
   <div class="browser-tip">
     <span class="tiptext">部分网站（如 github.com）不允许被内嵌，若下方显示空白，请点「复制地址」后到 Safari 粘贴打开。随时可用左上角返回 SGit。</span>
-    <button class="btn" id="browserSafari">用 Safari 打开</button>
+    <button class="btn" id="browserSafari">默认浏览器打开</button>
     <button class="btn" id="browserCopy">复制地址</button>
     <span class="copied" id="browserCopied" style="display:none">已复制 ✓</span>
   </div>
@@ -635,6 +635,36 @@
       navigator.clipboard.writeText(t).catch(function () { fallbackCopy(t); });
     } else { fallbackCopy(t); }
   }
+  // ---- 用系统默认浏览器打开 ----
+  // 浏览器环境：window.open 新标签（Safari / 系统默认浏览器）。
+  // App 的 WKWebView 没有 WKUIDelegate，window.open 会被静默丢弃（返回 null），
+  // 此时返回 false，由调用方降级到应用内浏览器层，避免点了没反应。
+  function openInDefaultBrowser(url) {
+    // 未重编的 App 版本：WKWebView 没有 WKUIDelegate，window.open 会被静默丢弃。
+    // 明确判定为不可用并降级，避免出现「点了完全没反应」。
+    // 原生壳支持后会在页面注入 window.sgitCanOpenExternal = true 打开此能力。
+    if (inAppWebView() && !window.sgitCanOpenExternal) return false;
+    if (window.sgitCanOpenExternal) {
+      // 原生壳已支持：window.open 会被 WKUIDelegate 接管并交给系统浏览器，
+      // 此时返回值无意义（原生不创建新 WebView 会返回 null），直接视为成功。
+      try { window.open(url, "_blank"); } catch (e) { return false; }
+      return true;
+    }
+    var w = null;
+    try {
+      // 不能在 features 里写 noopener：那样 window.open 会固定返回 null，
+      // 会把「成功打开」误判成失败。这里先拿窗口引用，再主动断开 opener。
+      w = window.open(url, "_blank");
+      if (w) { try { w.opener = null; } catch (e) {} }
+    } catch (e) {}
+    return !!w;
+  }
+  function setBrowserNotice(msg) {
+    var n = $("browserCopied");
+    n.textContent = msg;
+    n.style.display = "inline";
+  }
+
   // ---- 应用内浏览器 ----
   // 不再用 window.location.href 把 WKWebView 导航到外部站点：
   // App 内没有返回手势/按钮，一旦导航走就会卡在外部页面，只能重启 App。
@@ -677,14 +707,10 @@
     });
     $("browserSafari").addEventListener("click", function () {
       if (!browserUrl) return;
-      // 真 Safari 可新开标签；App 的 WKWebView 不支持新窗口，降级为复制地址
-      var w = null;
-      try { w = window.open(browserUrl, "_blank", "noopener,noreferrer"); } catch (e) {}
-      if (!w) {
-        copyText(browserUrl);
-        $("browserCopied").textContent = "地址已复制，请切到 Safari 粘贴打开";
-        $("browserCopied").style.display = "inline";
-      }
+      if (openInDefaultBrowser(browserUrl)) return;
+      // App 内无法跳转系统浏览器：保留地址可复制，并说明原因
+      copyText(browserUrl);
+      setBrowserNotice("此 App 版本暂不支持直接跳转浏览器，地址已复制，请到 Safari 粘贴打开");
     });
   }
 
@@ -698,10 +724,10 @@
       '<div class="extcard">' +
         '<div class="t">打开外部链接</div>' +
         '<div class="u">' + escapeHtml(url) + '</div>' +
-        '<p class="h">「应用内打开」会在带「返回 SGit」按钮的页面里显示链接，随时可回到列表。GitHub 等站点不允许内嵌，若显示空白请点「复制地址」后到 Safari 粘贴打开。</p>' +
+        '<p class="h">「默认浏览器打开」会用系统浏览器（Safari）打开链接；「应用内打开」则在带「返回 SGit」按钮的页面里显示，随时可回到列表。GitHub 等站点不允许内嵌，若内容空白请复制地址到 Safari 查看。</p>' +
         '<div class="bs">' +
           '<button class="btn" id="extOpen">应用内打开</button>' +
-          '<button class="btn" id="extCopy">复制地址</button>' +
+          '<button class="btn" id="extBrowser">默认浏览器打开</button>' +
           '<button class="btn" id="extCancel">取消</button>' +
         '</div>' +
       '</div>';
@@ -716,9 +742,12 @@
       if (box.parentNode) box.parentNode.removeChild(box);
       openInAppBrowser(url);
     });
-    $("extCopy").addEventListener("click", function () {
-      copyText(url);
-      this.textContent = "已复制 ✓";
+    $("extBrowser").addEventListener("click", function () {
+      if (box.parentNode) box.parentNode.removeChild(box);
+      if (openInDefaultBrowser(url)) return;
+      // App 内 WKWebView 不支持新窗口：降级到应用内浏览器层，保证有反馈且能返回
+      openInAppBrowser(url);
+      setBrowserNotice("此 App 版本未开启系统浏览器跳转，已在应用内打开；可点「复制地址」后到 Safari 查看");
     });
   }
   document.addEventListener("click", function (e) {
